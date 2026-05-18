@@ -522,6 +522,92 @@ body {
   min-height: 28px;
 }
 
+/* ─── Tool dock (drag pokémon → caldero) ──────────────────────────── */
+
+.tools-section {
+  min-width: 150px;
+  align-items: center;
+}
+
+.tool-dock {
+  display: flex;
+  gap: 8px;
+}
+
+.tool-btn {
+  position: relative;
+  width: 64px;
+  height: 78px;
+  background: var(--sk-paper);
+  border: var(--sk-line) solid var(--sk-ink);
+  padding: 4px;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  box-shadow: var(--sk-shadow-sm);
+  font-family: var(--sk-font-mono);
+  font-size: 9px;
+  color: var(--sk-ink);
+  letter-spacing: 0.06em;
+}
+
+.tool-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--sk-inner-hi);
+}
+
+.tool-btn img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  filter: drop-shadow(1px 2px 0 rgba(42, 37, 64, 0.25));
+}
+
+.tool-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.tool-btn:active {
+  cursor: grabbing;
+  transform: translate(1px, 1px);
+}
+
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tool-btn.tool-fire { background: #ffe1cc; border-color: var(--sk-accent); }
+.tool-btn.tool-rock { background: #e9e2f5; border-color: var(--sk-magic); }
+
+.tool-btn.dragging {
+  opacity: 0.4;
+  outline: 2px dashed var(--sk-warn);
+}
+
+.tool-ghost {
+  position: fixed;
+  width: 72px;
+  height: 72px;
+  pointer-events: none;
+  image-rendering: pixelated;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  filter: drop-shadow(0 4px 0 rgba(42, 37, 64, 0.5));
+}
+
+/* Drop target highlight while a tool is over */
+.cauldron-vessel {
+  transition: filter 0.1s;
+}
+
 /* ─── Water section ───────────────────────────────────────────────── */
 
 .water-section {

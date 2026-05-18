@@ -158,17 +158,9 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
   {
     id: 'col-6',
     kind: 'pokemon',
-    defId: 74,
-    label: 'Geodude',
+    defId: 19,
+    label: 'Rattata',
     pos: { x: 960, y: 820 },
-    radius: 18,
-  },
-  {
-    id: 'col-7',
-    kind: 'pokemon',
-    defId: 95,
-    label: 'Onix',
-    pos: { x: 480, y: 540 },
     radius: 18,
   },
 ]

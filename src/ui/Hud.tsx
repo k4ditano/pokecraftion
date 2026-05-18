@@ -1,15 +1,14 @@
 import type React from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { INGREDIENTS } from '../data/ingredients'
 import { getMove } from '../data/moves'
 import { MAP_CENTER } from '../data/map'
+import { spriteUrlFor } from '../services/pokeapi'
 
 function hexColor(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`
 }
-
-const GRIND_RATE_PER_SEC = 0.7
 
 export function Hud() {
   const party = useGameStore((s) => s.party)
@@ -110,11 +109,14 @@ export function Hud() {
           </div>
         </div>
 
+        <ToolDock />
+
         <div className="hud-section cauldron-section">
           <div className="section-title">Caldero</div>
           {!cauldron && (
             <>
               <div
+                id="cauldron-drop-target"
                 className="cauldron-vessel"
                 style={
                   { '--cauldron-liquid': 'rgba(120, 100, 70, 0.5)' } as React.CSSProperties
@@ -126,6 +128,7 @@ export function Hud() {
           {cauldron && cauldronDef && (
             <div className="cauldron">
               <div
+                id="cauldron-drop-target"
                 className="cauldron-vessel"
                 style={
                   { '--cauldron-liquid': hexColor(cauldronDef.color) } as React.CSSProperties
@@ -145,15 +148,13 @@ export function Hud() {
                 </span>
               </div>
               <div className="cauldron-actions">
-                <MortarButton disabled={busy || cauldron.grind >= 1} />
-                <PourButton disabled={cauldron.grind <= 0} />
                 <button
                   className="btn cancel"
                   disabled={busy}
                   onClick={() => cancelCauldron()}
                   title="Devolver al inventario"
                 >
-                  ✕
+                  ✕ Cancelar
                 </button>
               </div>
             </div>
@@ -229,74 +230,161 @@ export function Hud() {
   )
 }
 
-function PourButton({ disabled }: { disabled: boolean }) {
-  const pourCauldron = useGameStore((s) => s.pourCauldron)
-  const stopPour = useGameStore((s) => s.stopPour)
-  const isPouring = useGameStore((s) => s.isPouring)
+type ToolKind = 'fire' | 'rock'
 
-  const start = () => {
-    if (disabled) return
-    if (!isPouring) pourCauldron()
-  }
-  const stop = () => {
-    stopPour()
-  }
-
-  return (
-    <button
-      className="btn pour"
-      disabled={disabled}
-      onPointerDown={start}
-      onPointerUp={stop}
-      onPointerLeave={stop}
-      onPointerCancel={stop}
-    >
-      {isPouring ? 'Vertiendo…' : 'Verter (mantén)'}
-    </button>
-  )
+interface DraggedTool {
+  kind: ToolKind
+  defId: number
+  label: string
 }
 
-function MortarButton({ disabled }: { disabled: boolean }) {
+const TOOLS: DraggedTool[] = [
+  { kind: 'fire', defId: 4, label: 'Charmander' },
+  { kind: 'rock', defId: 74, label: 'Geodude' },
+]
+
+function ToolDock() {
+  const cauldron = useGameStore((s) => s.cauldron)
+  const pendingMovement = useGameStore((s) => s.pendingMovement)
+  const isPouring = useGameStore((s) => s.isPouring)
+  const pourCauldron = useGameStore((s) => s.pourCauldron)
+  const stopPour = useGameStore((s) => s.stopPour)
   const incrementGrind = useGameStore((s) => s.incrementGrind)
-  const rafRef = useRef<number | null>(null)
-  const lastTsRef = useRef<number | null>(null)
 
-  const stop = () => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
+  const [dragging, setDragging] = useState<DraggedTool | null>(null)
+  const [pointerPos, setPointerPos] = useState({ x: 0, y: 0 })
+  const overTargetRef = useRef(false)
+
+  // Always-fresh refs to avoid stale closures inside global listeners.
+  const stateRef = useRef({
+    isPouring,
+    cauldron,
+    pourCauldron,
+    stopPour,
+    incrementGrind,
+  })
+  stateRef.current = {
+    isPouring,
+    cauldron,
+    pourCauldron,
+    stopPour,
+    incrementGrind,
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+
+    let rafId: number | null = null
+    let lastTs: number | null = null
+
+    const checkOver = (x: number, y: number): boolean => {
+      const el = document.getElementById('cauldron-drop-target')
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     }
-    lastTsRef.current = null
-  }
 
-  const tick = (ts: number) => {
-    const last = lastTsRef.current
-    lastTsRef.current = ts
-    if (last !== null) {
-      const dt = (ts - last) / 1000
-      incrementGrind(GRIND_RATE_PER_SEC * dt)
+    const applyEnter = () => {
+      const s = stateRef.current
+      if (!s.cauldron) return
+      if (dragging.kind === 'fire' && !s.isPouring) s.pourCauldron()
     }
-    rafRef.current = requestAnimationFrame(tick)
+
+    const applyLeave = () => {
+      const s = stateRef.current
+      if (dragging.kind === 'fire' && s.isPouring) s.stopPour()
+    }
+
+    const tick = (ts: number) => {
+      const last = lastTs
+      lastTs = ts
+      const s = stateRef.current
+      if (
+        last !== null &&
+        overTargetRef.current &&
+        dragging.kind === 'rock' &&
+        s.cauldron &&
+        s.cauldron.grind < 1
+      ) {
+        const dt = (ts - last) / 1000
+        s.incrementGrind(0.7 * dt)
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+
+    const onMove = (e: PointerEvent) => {
+      setPointerPos({ x: e.clientX, y: e.clientY })
+      const isOver = checkOver(e.clientX, e.clientY)
+      const wasOver = overTargetRef.current
+      if (isOver !== wasOver) {
+        overTargetRef.current = isOver
+        if (isOver) applyEnter()
+        else applyLeave()
+      }
+    }
+
+    const onUp = () => {
+      if (overTargetRef.current) applyLeave()
+      overTargetRef.current = false
+      setDragging(null)
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onUp)
+    rafId = requestAnimationFrame(tick)
+
+    return () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      if (overTargetRef.current) applyLeave()
+      overTargetRef.current = false
+    }
+  }, [dragging])
+
+  const startDrag = (tool: DraggedTool) => (e: React.PointerEvent) => {
+    e.preventDefault()
+    setPointerPos({ x: e.clientX, y: e.clientY })
+    setDragging(tool)
   }
 
-  const start = () => {
-    if (disabled) return
-    if (rafRef.current !== null) return
-    rafRef.current = requestAnimationFrame(tick)
-  }
-
-  useEffect(() => () => stop(), [])
+  const busy = !!pendingMovement
 
   return (
-    <button
-      className="btn mortar"
-      disabled={disabled}
-      onPointerDown={start}
-      onPointerUp={stop}
-      onPointerLeave={stop}
-      onPointerCancel={stop}
-    >
-      Mortero (mantén)
-    </button>
+    <>
+      <div className="hud-section tools-section">
+        <div className="section-title">Herramientas</div>
+        <div className="tool-dock">
+          {TOOLS.map((t) => (
+            <button
+              key={t.kind}
+              className={`tool-btn tool-${t.kind} ${dragging?.kind === t.kind ? 'dragging' : ''}`}
+              onPointerDown={startDrag(t)}
+              disabled={busy && t.kind !== 'fire'}
+              title={
+                t.kind === 'fire'
+                  ? 'Arrastra al caldero para verter (mantén dentro = calor)'
+                  : 'Arrastra al caldero y mantén dentro para moler'
+              }
+            >
+              <img src={spriteUrlFor(t.defId)} alt={t.label} draggable={false} />
+              <span>{t.kind === 'fire' ? 'Calor' : 'Mortero'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {dragging && (
+        <img
+          src={spriteUrlFor(dragging.defId)}
+          alt=""
+          className="tool-ghost"
+          style={{ left: pointerPos.x, top: pointerPos.y }}
+          draggable={false}
+        />
+      )}
+    </>
   )
 }
