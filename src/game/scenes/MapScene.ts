@@ -15,15 +15,17 @@ const FOG_CELL = 40
 const FOG_COLS = Math.ceil(MAP_WIDTH / FOG_CELL)
 const FOG_ROWS = Math.ceil(MAP_HEIGHT / FOG_CELL)
 const VISION_RADIUS = 115
-const FOG_COLOR = 0x4a2f1a
-const FOG_ALPHA = 0.75
-const PARCHMENT_HEX = '#e8d9b0'
-const INK_HEX = 0x2e1e10
-const BRASS_HEX = 0xb8893a
-const WATER_BLUE = 0x3a6a9c
-const BLOOD_RED = 0x8b2f2f
-const PAWN_COLOR = 0x4a2f1a
-const PAWN_OUTLINE = 0xb8893a
+// Pixel palette (sketchy.jsx pixel mode)
+const FOG_COLOR = 0x2a2540
+const FOG_ALPHA = 0.78
+const BG_HEX = '#d8e3c4'
+const INK_HEX = 0x2a2540
+const PAPER_HEX = 0xfff5dc
+const ACCENT_HEX = 0xcf4640
+const MAGIC_HEX = 0x7c5cc4
+const WATER_HEX = 0x6aa8c4
+const PAWN_COLOR = 0x2a2540
+const PAWN_OUTLINE = 0xfff5dc
 
 interface ActiveMovement {
   waypoints: Vec2[]
@@ -62,22 +64,17 @@ export class MapScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor(PARCHMENT_HEX)
+    this.cameras.main.setBackgroundColor(BG_HEX)
 
-    this.drawParchmentTexture()
+    this.drawGrassTexture()
 
     const { width } = this.scale
     this.add
-      .text(
-        width / 2,
-        18,
-        '~ Mapa Alquímico ~',
-        {
-          fontFamily: 'IM Fell English SC, serif',
-          fontSize: '18px',
-          color: '#3a2817',
-        },
-      )
+      .text(width / 2, 18, 'BREW · MAP', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '11px',
+        color: '#2a2540',
+      })
       .setOrigin(0.5, 0)
       .setDepth(12)
 
@@ -85,16 +82,17 @@ export class MapScene extends Phaser.Scene {
       MAP_CENTER.x,
       MAP_CENTER.y,
       36,
-      WATER_BLUE,
-      0.5,
+      WATER_HEX,
+      0.85,
     )
-    this.centerMarker.setStrokeStyle(3, INK_HEX, 0.9)
+    this.centerMarker.setStrokeStyle(3, INK_HEX, 1)
     this.centerMarker.setDepth(1)
     this.add
       .text(MAP_CENTER.x, MAP_CENTER.y + 46, 'pozo', {
-        fontFamily: 'IM Fell English SC, serif',
-        fontSize: '12px',
-        color: '#3a2817',
+        fontFamily: '"JetBrains Mono", monospace',
+        fontSize: '10px',
+        color: '#2a2540',
+        letterSpacing: 2,
       })
       .setOrigin(0.5, 0)
       .setDepth(1)
@@ -271,15 +269,15 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private drawPortalEnd(p: Portal, pos: Vec2): void {
-    this.portalGfx.lineStyle(3, BRASS_HEX, 1)
-    this.portalGfx.strokeCircle(pos.x, pos.y, p.radius)
-    this.portalGfx.fillStyle(p.color, 0.35)
-    this.portalGfx.fillCircle(pos.x, pos.y, p.radius)
-    this.portalGfx.lineStyle(2, INK_HEX, 0.8)
-    this.portalGfx.strokeCircle(pos.x, pos.y, p.radius + 2)
-    this.portalGfx.fillStyle(BRASS_HEX, 0.9)
-    this.portalGfx.fillCircle(pos.x, pos.y, 3)
+  private drawPortalEnd(_p: Portal, pos: Vec2): void {
+    this.portalGfx.fillStyle(MAGIC_HEX, 1)
+    this.portalGfx.fillCircle(pos.x, pos.y, _p.radius)
+    this.portalGfx.lineStyle(3, INK_HEX, 1)
+    this.portalGfx.strokeCircle(pos.x, pos.y, _p.radius)
+    this.portalGfx.fillStyle(PAPER_HEX, 1)
+    this.portalGfx.fillCircle(pos.x, pos.y, 4)
+    this.portalGfx.lineStyle(2, INK_HEX, 1)
+    this.portalGfx.strokeCircle(pos.x, pos.y, 4)
   }
 
   private drawHazards(): void {
@@ -293,34 +291,33 @@ export class MapScene extends Phaser.Scene {
   private drawHazard(h: Hazard): void {
     const { x, y } = h.pos
     const r = h.radius
-    this.hazardGfx.lineStyle(3, BLOOD_RED, 1)
+    this.hazardGfx.fillStyle(PAPER_HEX, 1)
+    this.hazardGfx.fillRect(x - r - 2, y - r - 2, (r + 2) * 2, (r + 2) * 2)
+    this.hazardGfx.lineStyle(3, INK_HEX, 1)
+    this.hazardGfx.strokeRect(x - r - 2, y - r - 2, (r + 2) * 2, (r + 2) * 2)
+    this.hazardGfx.lineStyle(3, ACCENT_HEX, 1)
     this.hazardGfx.beginPath()
-    this.hazardGfx.moveTo(x - r, y - r)
-    this.hazardGfx.lineTo(x + r, y + r)
-    this.hazardGfx.moveTo(x + r, y - r)
-    this.hazardGfx.lineTo(x - r, y + r)
+    this.hazardGfx.moveTo(x - r + 2, y - r + 2)
+    this.hazardGfx.lineTo(x + r - 2, y + r - 2)
+    this.hazardGfx.moveTo(x + r - 2, y - r + 2)
+    this.hazardGfx.lineTo(x - r + 2, y + r - 2)
     this.hazardGfx.strokePath()
-    this.hazardGfx.fillStyle(BLOOD_RED, 0.15)
-    this.hazardGfx.fillCircle(x, y, r)
-    this.hazardGfx.lineStyle(2, INK_HEX, 0.7)
-    this.hazardGfx.strokeCircle(x, y, r + 2)
   }
 
-  private drawParchmentTexture(): void {
+  private drawGrassTexture(): void {
     const gfx = this.add.graphics()
     gfx.setDepth(0)
-    gfx.fillStyle(0xc9b283, 0.1)
-    for (let i = 0; i < 80; i++) {
-      const x = Math.random() * MAP_WIDTH
-      const y = Math.random() * MAP_HEIGHT
-      const r = 2 + Math.random() * 6
-      gfx.fillCircle(x, y, r)
+    gfx.fillStyle(0xb8c8a0, 1)
+    for (let y = 0; y < MAP_HEIGHT; y += 6) {
+      for (let x = 0; x < MAP_WIDTH; x += 6) {
+        gfx.fillRect(x, y, 1, 1)
+      }
     }
-    gfx.fillStyle(0xa0875a, 0.12)
-    for (let i = 0; i < 40; i++) {
-      const x = Math.random() * MAP_WIDTH
-      const y = Math.random() * MAP_HEIGHT
-      gfx.fillRect(x, y, 1, 1)
+    gfx.fillStyle(0xa8bb88, 1)
+    for (let y = 3; y < MAP_HEIGHT; y += 6) {
+      for (let x = 3; x < MAP_WIDTH; x += 6) {
+        gfx.fillRect(x, y, 1, 1)
+      }
     }
   }
 
@@ -347,10 +344,11 @@ export class MapScene extends Phaser.Scene {
       this.collectibleSprites.set(c.id, sprite)
 
       const label = this.add
-        .text(c.pos.x, c.pos.y + 36, c.label, {
-          fontFamily: 'IM Fell English SC, serif',
-          fontSize: '13px',
-          color: '#2e1e10',
+        .text(c.pos.x, c.pos.y + 36, c.label.toUpperCase(), {
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: '9px',
+          color: '#524a72',
+          letterSpacing: 2,
         })
         .setOrigin(0.5, 0)
       label.setDepth(3)
