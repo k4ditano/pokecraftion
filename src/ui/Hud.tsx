@@ -22,7 +22,6 @@ export function Hud() {
   const pathNodes = useGameStore((s) => s.pathNodes)
   const currentNodeIdx = useGameStore((s) => s.currentNodeIdx)
   const runComplete = useGameStore((s) => s.runComplete)
-  const cancelCauldron = useGameStore((s) => s.cancelCauldron)
   const openPath = useGameStore((s) => s.openPath)
   const openTeamPanel = useGameStore((s) => s.openTeamPanel)
   const healAtSpring = useGameStore((s) => s.healAtSpring)
@@ -31,7 +30,6 @@ export function Hud() {
     Math.hypot(playerPos.x - MAP_CENTER.x, playerPos.y - MAP_CENTER.y) <= 60
 
   const busy = !!pendingMovement
-  const cauldronDef = cauldron ? INGREDIENTS[cauldron.ingredientId] : null
   const nextNode = pathNodes[currentNodeIdx]
 
   return (
@@ -106,57 +104,7 @@ export function Hud() {
 
         <div className="hud-section cauldron-section">
           <div className="section-title">Caldero</div>
-          {!cauldron && (
-            <>
-              <div
-                id="cauldron-drop-target"
-                className="cauldron-vessel cauldron-empty"
-              >
-                <div className="cauldron-hint">arrastra aquí</div>
-              </div>
-              <div className="empty">— vacío —</div>
-            </>
-          )}
-          {cauldron && cauldronDef && (
-            <div className="cauldron">
-              <div
-                id="cauldron-drop-target"
-                className="cauldron-vessel cauldron-full"
-                style={
-                  {
-                    '--cauldron-liquid': hexColor(cauldronDef.color),
-                    '--herb-color': hexColor(cauldronDef.color),
-                    '--herb-scale': String(1 - cauldron.grind * 0.7),
-                  } as React.CSSProperties
-                }
-              >
-                <div className="cauldron-herb" />
-              </div>
-              <div className="cauldron-name">{cauldronDef.name}</div>
-              <div className="grind-bar">
-                <div
-                  className="grind-fill"
-                  style={{
-                    width: `${cauldron.grind * 100}%`,
-                    background: hexColor(cauldronDef.color),
-                  }}
-                />
-                <span className="grind-text">
-                  Mortero {Math.round(cauldron.grind * 100)}%
-                </span>
-              </div>
-              <div className="cauldron-actions">
-                <button
-                  className="btn cancel"
-                  disabled={busy}
-                  onClick={() => cancelCauldron()}
-                  title="Devolver al inventario"
-                >
-                  ✕ Cancelar
-                </button>
-              </div>
-            </div>
-          )}
+          <CauldronView />
         </div>
 
         <div className="hud-section water-section">
@@ -217,6 +165,127 @@ export function Hud() {
         </div>
       </div>
     </>
+  )
+}
+
+interface Particle {
+  id: number
+  x: number
+  y: number
+  vx: number
+}
+
+function CauldronView() {
+  const cauldron = useGameStore((s) => s.cauldron)
+  const isPouring = useGameStore((s) => s.isPouring)
+  const pendingMovement = useGameStore((s) => s.pendingMovement)
+  const cancelCauldron = useGameStore((s) => s.cancelCauldron)
+
+  const def = cauldron ? INGREDIENTS[cauldron.ingredientId] : null
+  const busy = !!pendingMovement
+  const colorHex = def ? hexColor(def.color) : '#666'
+
+  const [particles, setParticles] = useState<Particle[]>([])
+  const lastGrindRef = useRef(0)
+  const lastSpawnRef = useRef(0)
+  const idRef = useRef(0)
+
+  useEffect(() => {
+    if (!cauldron) {
+      lastGrindRef.current = 0
+      return
+    }
+    const prev = lastGrindRef.current
+    const curr = cauldron.grind
+    lastGrindRef.current = curr
+    if (curr <= prev) return
+    const now = performance.now()
+    if (now - lastSpawnRef.current < 90) return
+    lastSpawnRef.current = now
+    const id = ++idRef.current
+    const p: Particle = {
+      id,
+      x: 70 + (Math.random() - 0.5) * 50,
+      y: 38 + Math.random() * 8,
+      vx: (Math.random() - 0.5) * 30,
+    }
+    setParticles((ps) => [...ps, p])
+    window.setTimeout(() => {
+      setParticles((ps) => ps.filter((q) => q.id !== id))
+    }, 750)
+  }, [cauldron, cauldron?.grind])
+
+  if (!cauldron || !def) {
+    return (
+      <>
+        <div
+          id="cauldron-drop-target"
+          className="cauldron-vessel cauldron-empty"
+        >
+          <div className="cauldron-hint">arrastra aquí</div>
+        </div>
+        <div className="empty">— vacío —</div>
+      </>
+    )
+  }
+
+  const grind = cauldron.grind
+  const stateClass = isPouring
+    ? 'cauldron-state-pouring'
+    : grind >= 0.99
+      ? 'cauldron-state-ground'
+      : grind > 0
+        ? 'cauldron-state-grinding'
+        : 'cauldron-state-whole'
+
+  return (
+    <div className="cauldron">
+      <div
+        id="cauldron-drop-target"
+        className={`cauldron-vessel ${stateClass}`}
+        style={
+          {
+            '--cauldron-liquid': colorHex,
+            '--herb-color': colorHex,
+            '--herb-scale': String(1 - grind * 0.7),
+          } as React.CSSProperties
+        }
+      >
+        {!isPouring && grind < 0.99 && <div className="cauldron-herb" />}
+        {!isPouring && grind >= 0.99 && <div className="cauldron-pile" />}
+        {isPouring && <div className="cauldron-liquid" />}
+        {particles.map((p) => (
+          <span
+            key={p.id}
+            className="cauldron-particle"
+            style={{
+              left: p.x,
+              top: p.y,
+              background: colorHex,
+              ['--vx' as string]: `${p.vx}px`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="cauldron-name">{def.name}</div>
+      <div className="grind-bar">
+        <div
+          className="grind-fill"
+          style={{ width: `${grind * 100}%`, background: colorHex }}
+        />
+        <span className="grind-text">Mortero {Math.round(grind * 100)}%</span>
+      </div>
+      <div className="cauldron-actions">
+        <button
+          className="btn cancel"
+          disabled={busy}
+          onClick={() => cancelCauldron()}
+          title="Devolver al inventario"
+        >
+          ✕ Cancelar
+        </button>
+      </div>
+    </div>
   )
 }
 
