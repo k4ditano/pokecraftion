@@ -2,23 +2,29 @@ import Phaser from 'phaser'
 import { useGameStore } from '../../state/gameStore'
 import { getIngredient } from '../../data/ingredients'
 import { spriteUrlFor } from '../../services/pokeapi'
+import {
+  slicePathByFraction,
+  transformPath,
+} from '../pathUtils'
+import { MAP_CENTER } from '../../data/map'
 import type { Collectible, Vec2 } from '../types'
 
 const PLAYER_RADIUS = 14
-const MOVE_SPEED = 220
 
-interface Movement {
+interface ActiveMovement {
   waypoints: Vec2[]
   segIdx: number
   segT: number
+  speed: number
 }
 
 export class MapScene extends Phaser.Scene {
   private playerPawn!: Phaser.GameObjects.Arc
+  private centerMarker!: Phaser.GameObjects.Arc
   private previewGfx!: Phaser.GameObjects.Graphics
   private collectibleSprites = new Map<string, Phaser.GameObjects.Image>()
   private collectibleLabels = new Map<string, Phaser.GameObjects.Text>()
-  private movement: Movement | null = null
+  private movement: ActiveMovement | null = null
   private unsubStore: (() => void) | null = null
 
   constructor() {
@@ -40,14 +46,26 @@ export class MapScene extends Phaser.Scene {
 
     const { width } = this.scale
     this.add
-      .text(width / 2, 24, 'MAPA — selecciona ingrediente y apunta', {
+      .text(width / 2, 18, 'MAPA — añade ingrediente al caldero, muele y vierte', {
         fontFamily: 'monospace',
-        fontSize: '14px',
+        fontSize: '13px',
         color: '#aaaaaa',
       })
       .setOrigin(0.5, 0)
 
+    this.centerMarker = this.add.circle(
+      MAP_CENTER.x,
+      MAP_CENTER.y,
+      36,
+      0x2a4a6a,
+      0.55,
+    )
+    this.centerMarker.setStrokeStyle(2, 0x4a7aac, 0.9)
+    this.centerMarker.setDepth(1)
+
     this.previewGfx = this.add.graphics()
+    this.previewGfx.setDepth(5)
+
     this.renderCollectibles()
 
     const start = useGameStore.getState().playerPos
@@ -68,8 +86,10 @@ export class MapScene extends Phaser.Scene {
       if (state.playerPos !== prev.playerPos && !this.movement) {
         this.playerPawn.setPosition(state.playerPos.x, state.playerPos.y)
       }
-      if (state.selectedIngredientId !== prev.selectedIngredientId) {
-        if (!state.selectedIngredientId) this.previewGfx.clear()
+      if (state.pendingMovement !== prev.pendingMovement) {
+        if (state.pendingMovement && !this.movement) {
+          this.beginMovement(state.pendingMovement.waypoints, state.pendingMovement.speed)
+        }
       }
     })
 
@@ -82,8 +102,10 @@ export class MapScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
+    this.drawCauldronPreview()
+
     if (!this.movement) return
-    const { waypoints, segIdx } = this.movement
+    const { waypoints, segIdx, speed } = this.movement
     if (segIdx >= waypoints.length - 1) return
 
     const a = waypoints[segIdx]
@@ -95,7 +117,7 @@ export class MapScene extends Phaser.Scene {
       return
     }
 
-    const nextT = this.movement.segT + (MOVE_SPEED * (delta / 1000)) / segLen
+    const nextT = this.movement.segT + (speed * (delta / 1000)) / segLen
 
     if (nextT >= 1) {
       this.movement.segIdx++
@@ -105,7 +127,9 @@ export class MapScene extends Phaser.Scene {
       if (this.movement.segIdx >= waypoints.length - 1) {
         const last = waypoints[waypoints.length - 1]
         this.movement = null
-        useGameStore.getState().setPlayerPos({ x: last.x, y: last.y })
+        const store = useGameStore.getState()
+        store.setPlayerPos({ x: last.x, y: last.y })
+        store.consumePendingMovement()
       }
     } else {
       this.movement.segT = nextT
@@ -114,6 +138,15 @@ export class MapScene extends Phaser.Scene {
       this.playerPawn.setPosition(px, py)
       this.checkCollisions({ x: px, y: py })
     }
+  }
+
+  private beginMovement(waypoints: Vec2[], speed: number): void {
+    if (waypoints.length < 2) {
+      useGameStore.getState().consumePendingMovement()
+      return
+    }
+    this.movement = { waypoints, segIdx: 0, segT: 0, speed }
+    this.previewGfx.clear()
   }
 
   private renderCollectibles(): void {
@@ -148,64 +181,58 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+  private drawCauldronPreview(): void {
     if (this.movement) return
     const state = useGameStore.getState()
-    const selectedId = state.selectedIngredientId
-    if (!selectedId) {
+    if (!state.cauldron) {
       this.previewGfx.clear()
       return
     }
-    const def = getIngredient(selectedId)
-    if (!def) return
-
-    const origin = state.playerPos
-    const angle = Math.atan2(pointer.y - origin.y, pointer.x - origin.x)
-    this.drawPreview(origin, def.path, angle, def.color)
-  }
-
-  private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    if (this.movement) return
-    const state = useGameStore.getState()
-    const selectedId = state.selectedIngredientId
-    if (!selectedId) return
-    const def = getIngredient(selectedId)
-    if (!def) return
-
-    const origin = state.playerPos
-    const angle = Math.atan2(pointer.y - origin.y, pointer.x - origin.x)
-    const waypoints = transformPath(def.path, origin, angle)
-
+    const def = getIngredient(state.cauldron.ingredientId)
+    if (!def) {
+      this.previewGfx.clear()
+      return
+    }
+    const sliced = slicePathByFraction(def.path, state.cauldron.grind)
+    if (sliced.length < 2) {
+      this.previewGfx.clear()
+      this.previewGfx.lineStyle(2, def.color, 0.4)
+      this.previewGfx.strokeCircle(state.playerPos.x, state.playerPos.y, 22)
+      return
+    }
+    const waypoints = transformPath(sliced, state.playerPos, state.aimAngle)
     this.previewGfx.clear()
-    state.consumeIngredient(selectedId)
-    this.movement = { waypoints, segIdx: 0, segT: 0 }
-  }
-
-  private drawPreview(
-    origin: Vec2,
-    path: Vec2[],
-    angle: number,
-    color: number,
-  ): void {
-    const waypoints = transformPath(path, origin, angle)
-    this.previewGfx.clear()
-    this.previewGfx.lineStyle(3, color, 0.85)
+    this.previewGfx.lineStyle(3, def.color, 0.85)
     this.previewGfx.beginPath()
     this.previewGfx.moveTo(waypoints[0].x, waypoints[0].y)
     for (let i = 1; i < waypoints.length; i++) {
       this.previewGfx.lineTo(waypoints[i].x, waypoints[i].y)
     }
     this.previewGfx.strokePath()
-
     const end = waypoints[waypoints.length - 1]
-    this.previewGfx.fillStyle(color, 1)
+    this.previewGfx.fillStyle(def.color, 1)
     this.previewGfx.fillCircle(end.x, end.y, 6)
   }
 
+  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    if (this.movement) return
+    const state = useGameStore.getState()
+    const origin = state.playerPos
+    const angle = Math.atan2(pointer.y - origin.y, pointer.x - origin.x)
+    state.setAim(angle)
+  }
+
+  private onPointerDown(): void {
+    if (this.movement) return
+    const state = useGameStore.getState()
+    if (state.cauldron && state.cauldron.grind > 0) {
+      state.pourCauldron()
+    }
+  }
+
   private checkCollisions(pos: Vec2): void {
-    const collectibles = useGameStore.getState().collectibles
     const store = useGameStore.getState()
-    for (const c of collectibles) {
+    for (const c of store.collectibles) {
       if (overlaps(pos, c)) {
         store.collectItem(c.id)
       }
@@ -216,13 +243,4 @@ export class MapScene extends Phaser.Scene {
 function overlaps(pos: Vec2, c: Collectible): boolean {
   const d = Phaser.Math.Distance.Between(pos.x, pos.y, c.pos.x, c.pos.y)
   return d < c.radius + PLAYER_RADIUS
-}
-
-function transformPath(path: Vec2[], origin: Vec2, angle: number): Vec2[] {
-  const cos = Math.cos(angle)
-  const sin = Math.sin(angle)
-  return path.map((p) => ({
-    x: origin.x + p.x * cos - p.y * sin,
-    y: origin.y + p.x * sin + p.y * cos,
-  }))
 }

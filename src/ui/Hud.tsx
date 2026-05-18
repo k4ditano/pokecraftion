@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { INGREDIENTS } from '../data/ingredients'
 
@@ -5,13 +6,23 @@ function hexColor(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`
 }
 
+const GRIND_RATE_PER_SEC = 0.7
+
 export function Hud() {
   const phase = useGameStore((s) => s.phase)
   const party = useGameStore((s) => s.party)
   const inventory = useGameStore((s) => s.inventory)
-  const selectedId = useGameStore((s) => s.selectedIngredientId)
-  const selectIngredient = useGameStore((s) => s.selectIngredient)
   const collectibles = useGameStore((s) => s.collectibles)
+  const cauldron = useGameStore((s) => s.cauldron)
+  const water = useGameStore((s) => s.water)
+  const pendingMovement = useGameStore((s) => s.pendingMovement)
+  const addToCauldron = useGameStore((s) => s.addToCauldron)
+  const cancelCauldron = useGameStore((s) => s.cancelCauldron)
+  const pourCauldron = useGameStore((s) => s.pourCauldron)
+  const pourWater = useGameStore((s) => s.pourWater)
+
+  const busy = !!pendingMovement
+  const cauldronDef = cauldron ? INGREDIENTS[cauldron.ingredientId] : null
 
   return (
     <>
@@ -28,39 +39,103 @@ export function Hud() {
           <span className="hud-label">Mapa:</span>
           <span className="hud-value">{collectibles.length} restantes</span>
         </div>
+        <div className="hud-row">
+          <span className="hud-label">Agua:</span>
+          <span className="hud-value">{water}</span>
+        </div>
       </div>
 
       <div className="hud hud-bottom interactive">
-        <div className="inventory-title">Ingredientes</div>
-        <div className="inventory">
-          {inventory.map((item) => {
-            const def = INGREDIENTS[item.id]
-            const isSelected = selectedId === item.id
-            const disabled = item.qty <= 0
-            return (
-              <button
-                key={item.id}
-                className={`ingredient ${isSelected ? 'selected' : ''}`}
-                disabled={disabled}
-                onClick={() =>
-                  selectIngredient(isSelected ? null : item.id)
-                }
-              >
+        <div className="hud-section">
+          <div className="section-title">Ingredientes</div>
+          <div className="inventory">
+            {inventory.length === 0 && (
+              <div className="empty">— sin ingredientes —</div>
+            )}
+            {inventory.map((item) => {
+              const def = INGREDIENTS[item.id]
+              const disabled = !!cauldron || busy || item.qty <= 0
+              return (
+                <button
+                  key={item.id}
+                  className="ingredient"
+                  disabled={disabled}
+                  onClick={() => addToCauldron(item.id)}
+                  title="Añadir al caldero"
+                >
+                  <span
+                    className="ingredient-swatch"
+                    style={{ background: def ? hexColor(def.color) : '#666' }}
+                  />
+                  <span className="ingredient-name">{item.name}</span>
+                  <span className="ingredient-qty">×{item.qty}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="hud-section cauldron-section">
+          <div className="section-title">Caldero</div>
+          {!cauldron && <div className="empty">— vacío —</div>}
+          {cauldron && cauldronDef && (
+            <div className="cauldron">
+              <div className="cauldron-head">
                 <span
-                  className="ingredient-swatch"
+                  className="ingredient-swatch big"
+                  style={{ background: hexColor(cauldronDef.color) }}
+                />
+                <span className="cauldron-name">{cauldronDef.name}</span>
+              </div>
+              <div className="grind-bar">
+                <div
+                  className="grind-fill"
                   style={{
-                    background: def ? hexColor(def.color) : '#666',
+                    width: `${cauldron.grind * 100}%`,
+                    background: hexColor(cauldronDef.color),
                   }}
                 />
-                <span className="ingredient-name">{item.name}</span>
-                <span className="ingredient-qty">×{item.qty}</span>
-              </button>
-            )
-          })}
+                <span className="grind-text">
+                  Mortero {Math.round(cauldron.grind * 100)}%
+                </span>
+              </div>
+              <div className="cauldron-actions">
+                <MortarButton disabled={busy || cauldron.grind >= 1} />
+                <button
+                  className="btn pour"
+                  disabled={busy || cauldron.grind <= 0}
+                  onClick={() => pourCauldron()}
+                >
+                  Verter
+                </button>
+                <button
+                  className="btn cancel"
+                  disabled={busy}
+                  onClick={() => cancelCauldron()}
+                  title="Devolver al inventario"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        <div className="hud-section water-section">
+          <div className="section-title">Agua</div>
+          <button
+            className="btn water"
+            disabled={busy || !!cauldron || water <= 0}
+            onClick={() => pourWater()}
+            title="Vierte agua: te lleva despacio al centro"
+          >
+            💧 Verter ({water})
+          </button>
+        </div>
+
         {party.length > 0 && (
-          <>
-            <div className="inventory-title party-title">Equipo</div>
+          <div className="hud-section">
+            <div className="section-title">Equipo</div>
             <div className="party">
               {party.map((m, i) => (
                 <div key={i} className="party-member">
@@ -68,9 +143,54 @@ export function Hud() {
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </>
+  )
+}
+
+function MortarButton({ disabled }: { disabled: boolean }) {
+  const incrementGrind = useGameStore((s) => s.incrementGrind)
+  const rafRef = useRef<number | null>(null)
+  const lastTsRef = useRef<number | null>(null)
+
+  const stop = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    lastTsRef.current = null
+  }
+
+  const tick = (ts: number) => {
+    const last = lastTsRef.current
+    lastTsRef.current = ts
+    if (last !== null) {
+      const dt = (ts - last) / 1000
+      incrementGrind(GRIND_RATE_PER_SEC * dt)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+  }
+
+  const start = () => {
+    if (disabled) return
+    if (rafRef.current !== null) return
+    rafRef.current = requestAnimationFrame(tick)
+  }
+
+  useEffect(() => () => stop(), [])
+
+  return (
+    <button
+      className="btn mortar"
+      disabled={disabled}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+    >
+      Mortero (mantén)
+    </button>
   )
 }

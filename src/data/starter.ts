@@ -1,5 +1,6 @@
 import type { Collectible } from '../game/types'
 import type { InventoryItem } from '../state/gameStore'
+import { MAP_CENTER } from './map'
 
 export const STARTER_INVENTORY: InventoryItem[] = [
   { id: 'straight', name: 'Hierba lineal', qty: 4 },
@@ -7,7 +8,7 @@ export const STARTER_INVENTORY: InventoryItem[] = [
   { id: 'jump', name: 'Piedra salto', qty: 2 },
 ]
 
-export const STARTER_PLAYER_POS = { x: 140, y: 270 }
+export const STARTER_PLAYER_POS = { ...MAP_CENTER }
 
 export const STARTER_COLLECTIBLES: Collectible[] = [
   {
@@ -15,7 +16,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 1,
     label: 'Bulbasaur',
-    pos: { x: 360, y: 200 },
+    pos: { x: 240, y: 130 },
     radius: 28,
   },
   {
@@ -23,7 +24,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 4,
     label: 'Charmander',
-    pos: { x: 520, y: 340 },
+    pos: { x: 760, y: 130 },
     radius: 28,
   },
   {
@@ -31,7 +32,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 7,
     label: 'Squirtle',
-    pos: { x: 700, y: 180 },
+    pos: { x: 760, y: 410 },
     radius: 28,
   },
   {
@@ -39,7 +40,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 25,
     label: 'Pikachu',
-    pos: { x: 820, y: 380 },
+    pos: { x: 240, y: 410 },
     radius: 28,
   },
   {
@@ -47,7 +48,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 16,
     label: 'Pidgey',
-    pos: { x: 600, y: 90 },
+    pos: { x: 480, y: 90 },
     radius: 28,
   },
   {
@@ -55,7 +56,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 19,
     label: 'Rattata',
-    pos: { x: 280, y: 440 },
+    pos: { x: 480, y: 460 },
     radius: 28,
   },
 ]
