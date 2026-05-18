@@ -30,6 +30,7 @@ export interface Hazard {
   id: string
   pos: Vec2
   radius: number
+  angle?: number
 }
 
 export type NodeType = 'trainer' | 'merchant' | 'event' | 'elite' | 'boss'

@@ -23,9 +23,9 @@ const FOG_ALPHA_EDGE = 0.78
 const BG_HEX = '#d8e3c4'
 const INK_HEX = 0x2a2540
 const PAPER_HEX = 0xfff5dc
-const ACCENT_HEX = 0xcf4640
 const MAGIC_HEX = 0x7c5cc4
 const WATER_HEX = 0x6aa8c4
+const BONE_FILL = 0xf6e8c3
 const PAWN_COLOR = 0x2a2540
 const PAWN_OUTLINE = 0xfff5dc
 
@@ -303,16 +303,40 @@ export class MapScene extends Phaser.Scene {
   private drawHazard(h: Hazard): void {
     const { x, y } = h.pos
     const r = h.radius
-    this.hazardGfx.fillStyle(PAPER_HEX, 1)
-    this.hazardGfx.fillRect(x - r - 2, y - r - 2, (r + 2) * 2, (r + 2) * 2)
-    this.hazardGfx.lineStyle(3, INK_HEX, 1)
-    this.hazardGfx.strokeRect(x - r - 2, y - r - 2, (r + 2) * 2, (r + 2) * 2)
-    this.hazardGfx.lineStyle(3, ACCENT_HEX, 1)
+    const angle = h.angle ?? 0
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const dx = cos * r * 0.65
+    const dy = sin * r * 0.65
+    const endR = r * 0.45
+
+    // bone shaft (thick line between knobs)
+    this.hazardGfx.lineStyle(r * 0.55, BONE_FILL, 1)
     this.hazardGfx.beginPath()
-    this.hazardGfx.moveTo(x - r + 2, y - r + 2)
-    this.hazardGfx.lineTo(x + r - 2, y + r - 2)
-    this.hazardGfx.moveTo(x + r - 2, y - r + 2)
-    this.hazardGfx.lineTo(x - r + 2, y + r - 2)
+    this.hazardGfx.moveTo(x - dx, y - dy)
+    this.hazardGfx.lineTo(x + dx, y + dy)
+    this.hazardGfx.strokePath()
+
+    // knob fill
+    this.hazardGfx.fillStyle(BONE_FILL, 1)
+    this.hazardGfx.fillCircle(x - dx, y - dy, endR)
+    this.hazardGfx.fillCircle(x + dx, y + dy, endR)
+
+    // ink outlines for chunky pixel feel
+    this.hazardGfx.lineStyle(2, INK_HEX, 1)
+    this.hazardGfx.strokeCircle(x - dx, y - dy, endR)
+    this.hazardGfx.strokeCircle(x + dx, y + dy, endR)
+
+    // re-draw shaft outline edges
+    const nx = -sin
+    const ny = cos
+    const halfShaft = r * 0.27
+    this.hazardGfx.lineStyle(2, INK_HEX, 1)
+    this.hazardGfx.beginPath()
+    this.hazardGfx.moveTo(x - dx + nx * halfShaft, y - dy + ny * halfShaft)
+    this.hazardGfx.lineTo(x + dx + nx * halfShaft, y + dy + ny * halfShaft)
+    this.hazardGfx.moveTo(x - dx - nx * halfShaft, y - dy - ny * halfShaft)
+    this.hazardGfx.lineTo(x + dx - nx * halfShaft, y + dy - ny * halfShaft)
     this.hazardGfx.strokePath()
   }
 
