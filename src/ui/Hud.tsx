@@ -370,10 +370,8 @@ function ToolDock() {
       return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     }
 
-    // Fire/water latch ON the first time they enter the cauldron; only
-    // releasing the pokémon stops them. Rock requires continuous overlap.
-    let fireLatched = false
-    let waterLatched = false
+    // All three tools require the pokémon to stay over the cauldron.
+    // Leave the zone → effect stops. Release pokémon → effect stops.
 
     const tick = (ts: number) => {
       const last = lastTs
@@ -395,31 +393,26 @@ function ToolDock() {
     const onMove = (e: PointerEvent) => {
       setPointerPos({ x: e.clientX, y: e.clientY })
       const isOver = checkOver(e.clientX, e.clientY)
+      const wasOver = overTargetRef.current
+      if (isOver === wasOver) return
       overTargetRef.current = isOver
       const s = stateRef.current
-      if (dragging.kind === 'fire' && isOver && !fireLatched) {
-        if (s.cauldron && !s.isPouring) {
-          s.pourCauldron()
-          fireLatched = true
-        }
-      } else if (dragging.kind === 'water' && isOver && !waterLatched) {
-        if (!s.cauldron && !s.isWatering && s.water > 0) {
+      if (dragging.kind === 'fire') {
+        if (isOver && s.cauldron && !s.isPouring) s.pourCauldron()
+        else if (!isOver && s.isPouring) s.stopPour()
+      } else if (dragging.kind === 'water') {
+        if (isOver && !s.cauldron && !s.isWatering && s.water > 0) {
           s.startWaterFlow()
-          waterLatched = true
+        } else if (!isOver && s.isWatering) {
+          s.stopWaterFlow()
         }
       }
     }
 
     const onUp = () => {
       const s = stateRef.current
-      if (dragging.kind === 'fire' && fireLatched && s.isPouring) {
-        s.stopPour()
-      }
-      if (dragging.kind === 'water' && waterLatched && s.isWatering) {
-        s.stopWaterFlow()
-      }
-      fireLatched = false
-      waterLatched = false
+      if (dragging.kind === 'fire' && s.isPouring) s.stopPour()
+      if (dragging.kind === 'water' && s.isWatering) s.stopWaterFlow()
       overTargetRef.current = false
       setDragging(null)
     }
@@ -435,8 +428,8 @@ function ToolDock() {
       document.removeEventListener('pointercancel', onUp)
       if (rafId !== null) cancelAnimationFrame(rafId)
       const s = stateRef.current
-      if (fireLatched && s.isPouring) s.stopPour()
-      if (waterLatched && s.isWatering) s.stopWaterFlow()
+      if (s.isPouring) s.stopPour()
+      if (s.isWatering) s.stopWaterFlow()
       overTargetRef.current = false
     }
   }, [dragging])
