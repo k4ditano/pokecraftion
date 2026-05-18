@@ -29,20 +29,20 @@ export const INGREDIENTS: Record<string, IngredientDef> = {
     color: 0x2ecc71,
     path: [
       { x: 0, y: 0 },
-      { x: 380, y: 0 },
+      { x: 130, y: 0 },
     ],
   },
   scurve: {
     id: 'scurve',
     name: 'Baya curva',
     color: 0x9b59b6,
-    path: generateSCurve(440, 90, 80),
+    path: generateSCurve(170, 42, 48),
   },
   jump: {
     id: 'jump',
     name: 'Piedra salto',
     color: 0xe74c3c,
-    path: generateArc(380, -150, 56),
+    path: generateArc(150, -65, 36),
   },
 }
 

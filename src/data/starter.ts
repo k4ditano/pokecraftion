@@ -43,32 +43,6 @@ function lineHazards(
   return out
 }
 
-function arcHazards(
-  center: Vec2,
-  radius: number,
-  startAngle: number,
-  endAngle: number,
-  count: number,
-  hazardR = 14,
-): Hazard[] {
-  const out: Hazard[] = []
-  for (let i = 0; i < count; i++) {
-    const t = count === 1 ? 0.5 : i / (count - 1)
-    const a = startAngle + (endAngle - startAngle) * t
-    const jit = (Math.random() - 0.5) * 8
-    out.push(
-      makeHazard(
-        {
-          x: center.x + Math.cos(a) * (radius + jit),
-          y: center.y + Math.sin(a) * (radius + jit),
-        },
-        hazardR,
-        a + Math.PI / 2 + (Math.random() - 0.5) * 0.4,
-      ),
-    )
-  }
-  return out
-}
 
 function blobHazards(
   center: Vec2,
@@ -91,39 +65,6 @@ function blobHazards(
   return out
 }
 
-function ringHazards(
-  center: Vec2,
-  radius: number,
-  count: number,
-  gaps: { angle: number; width: number }[] = [],
-  hazardR = 14,
-): Hazard[] {
-  const out: Hazard[] = []
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2
-    let skip = false
-    for (const g of gaps) {
-      let diff = Math.abs(a - g.angle)
-      if (diff > Math.PI) diff = Math.PI * 2 - diff
-      if (diff < g.width / 2) {
-        skip = true
-        break
-      }
-    }
-    if (skip) continue
-    out.push(
-      makeHazard(
-        {
-          x: center.x + Math.cos(a) * radius,
-          y: center.y + Math.sin(a) * radius,
-        },
-        hazardR,
-        a + Math.PI / 2,
-      ),
-    )
-  }
-  return out
-}
 
 export const STARTER_INVENTORY: InventoryItem[] = [
   { id: 'straight', name: 'Hierba lineal', qty: 4 },
@@ -136,60 +77,41 @@ export const STARTER_PLAYER_POS = { ...MAP_CENTER }
 export const STARTER_PORTALS: Portal[] = [
   {
     id: 'portal-1',
-    a: { x: 220, y: 540 },
-    b: { x: 1700, y: 540 },
+    a: { x: 480, y: 540 },
+    b: { x: 1440, y: 540 },
     color: 0x7c5cc4,
-    radius: 16,
+    radius: 14,
   },
 ]
 
+const BONE_R = 7
+
 export const STARTER_HAZARDS: Hazard[] = [
-  // Wall of bones between pozo and Bulbasaur (forces curve or jump)
-  ...lineHazards({ x: 580, y: 380 }, { x: 760, y: 480 }, 6, 12),
-  ...lineHazards({ x: 580, y: 700 }, { x: 760, y: 600 }, 6, 12),
+  // Four dense corner blobs — solid bone walls in each quadrant
+  ...blobHazards({ x: 380, y: 220 }, 130, 55, BONE_R),
+  ...blobHazards({ x: 1540, y: 220 }, 130, 55, BONE_R),
+  ...blobHazards({ x: 380, y: 860 }, 120, 50, BONE_R),
+  ...blobHazards({ x: 1540, y: 860 }, 120, 50, BONE_R),
 
-  // Arc guarding Charmander (north of him, forces approach from south)
-  ...arcHazards(
-    { x: 1460, y: 300 },
-    140,
-    -Math.PI * 0.85,
-    -Math.PI * 0.15,
-    7,
-    13,
-  ),
+  // Vertical pillar between pozo and Bulbasaur — forces curve
+  ...blobHazards({ x: 830, y: 540 }, 50, 22, BONE_R),
+  // Vertical pillar between pozo and Charmander
+  ...blobHazards({ x: 1090, y: 540 }, 50, 22, BONE_R),
 
-  // Arc guarding Pikachu (south of him, forces approach from north)
-  ...arcHazards(
-    { x: 460, y: 780 },
-    140,
-    Math.PI * 0.15,
-    Math.PI * 0.85,
-    7,
-    13,
-  ),
+  // Top-center blob blocks direct north access
+  ...blobHazards({ x: 960, y: 420 }, 55, 24, BONE_R),
+  // Bottom-center blob blocks direct south access
+  ...blobHazards({ x: 960, y: 660 }, 55, 24, BONE_R),
 
-  // Blob cluster near Squirtle — chaotic zone
-  ...blobHazards({ x: 1320, y: 870 }, 90, 9, 12),
+  // Diagonal trails connecting corner blobs (curve through them)
+  ...lineHazards({ x: 540, y: 360 }, { x: 700, y: 320 }, 10, 6, BONE_R),
+  ...lineHazards({ x: 1420, y: 360 }, { x: 1260, y: 320 }, 10, 6, BONE_R),
+  ...lineHazards({ x: 540, y: 720 }, { x: 700, y: 760 }, 10, 6, BONE_R),
+  ...lineHazards({ x: 1420, y: 720 }, { x: 1260, y: 760 }, 10, 6, BONE_R),
 
-  // Scattered ring around pozo with 4 cardinal gaps
-  ...ringHazards(
-    { x: MAP_CENTER.x, y: MAP_CENTER.y },
-    260,
-    14,
-    [
-      { angle: 0, width: 1.0 },
-      { angle: Math.PI / 2, width: 1.0 },
-      { angle: Math.PI, width: 1.0 },
-      { angle: -Math.PI / 2, width: 1.0 },
-    ],
-    12,
-  ),
-
-  // Diagonal bone-trail northeast quadrant
-  ...lineHazards({ x: 1100, y: 200 }, { x: 1380, y: 80 }, 5, 10, 12),
-
-  // Bone-blob in corner near Pidgey
-  ...blobHazards({ x: 900, y: 100 }, 60, 5, 11),
+  // Two corridor blocks near Pidgey/Rattata
+  ...blobHazards({ x: 820, y: 260 }, 40, 14, BONE_R),
+  ...blobHazards({ x: 1100, y: 820 }, 40, 14, BONE_R),
 ]
 
 export const STARTER_COLLECTIBLES: Collectible[] = [
@@ -198,7 +120,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 1,
     label: 'Bulbasaur',
-    pos: { x: 460, y: 300 },
+    pos: { x: 700, y: 380 },
     radius: 18,
   },
   {
@@ -206,7 +128,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 4,
     label: 'Charmander',
-    pos: { x: 1460, y: 300 },
+    pos: { x: 1220, y: 380 },
     radius: 18,
   },
   {
@@ -214,7 +136,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 7,
     label: 'Squirtle',
-    pos: { x: 1460, y: 780 },
+    pos: { x: 1220, y: 700 },
     radius: 18,
   },
   {
@@ -222,7 +144,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 25,
     label: 'Pikachu',
-    pos: { x: 460, y: 780 },
+    pos: { x: 700, y: 700 },
     radius: 18,
   },
   {
@@ -230,7 +152,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 16,
     label: 'Pidgey',
-    pos: { x: 960, y: 180 },
+    pos: { x: 960, y: 260 },
     radius: 18,
   },
   {
@@ -238,7 +160,7 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     kind: 'pokemon',
     defId: 19,
     label: 'Rattata',
-    pos: { x: 960, y: 900 },
+    pos: { x: 960, y: 820 },
     radius: 18,
   },
 ]
