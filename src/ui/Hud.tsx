@@ -22,7 +22,6 @@ export function Hud() {
   const pathNodes = useGameStore((s) => s.pathNodes)
   const currentNodeIdx = useGameStore((s) => s.currentNodeIdx)
   const runComplete = useGameStore((s) => s.runComplete)
-  const addToCauldron = useGameStore((s) => s.addToCauldron)
   const cancelCauldron = useGameStore((s) => s.cancelCauldron)
   const pourWater = useGameStore((s) => s.pourWater)
   const openPath = useGameStore((s) => s.openPath)
@@ -90,20 +89,14 @@ export function Hud() {
               const def = INGREDIENTS[item.id]
               const disabled = !!cauldron || busy || item.qty <= 0
               return (
-                <button
+                <IngredientDraggable
                   key={item.id}
-                  className="ingredient"
+                  itemId={item.id}
+                  name={item.name}
+                  qty={item.qty}
+                  color={def ? def.color : 0x666666}
                   disabled={disabled}
-                  onClick={() => addToCauldron(item.id)}
-                  title="Añadir al caldero"
-                >
-                  <span
-                    className="ingredient-swatch"
-                    style={{ background: def ? hexColor(def.color) : '#666' }}
-                  />
-                  <span className="ingredient-name">{item.name}</span>
-                  <span className="ingredient-qty">x{item.qty}</span>
-                </button>
+                />
               )
             })}
           </div>
@@ -117,11 +110,10 @@ export function Hud() {
             <>
               <div
                 id="cauldron-drop-target"
-                className="cauldron-vessel"
-                style={
-                  { '--cauldron-liquid': 'rgba(120, 100, 70, 0.5)' } as React.CSSProperties
-                }
-              />
+                className="cauldron-vessel cauldron-empty"
+              >
+                <div className="cauldron-hint">arrastra aquí</div>
+              </div>
               <div className="empty">— vacío —</div>
             </>
           )}
@@ -129,11 +121,17 @@ export function Hud() {
             <div className="cauldron">
               <div
                 id="cauldron-drop-target"
-                className="cauldron-vessel"
+                className="cauldron-vessel cauldron-full"
                 style={
-                  { '--cauldron-liquid': hexColor(cauldronDef.color) } as React.CSSProperties
+                  {
+                    '--cauldron-liquid': hexColor(cauldronDef.color),
+                    '--herb-color': hexColor(cauldronDef.color),
+                    '--herb-scale': String(1 - cauldron.grind * 0.7),
+                  } as React.CSSProperties
                 }
-              />
+              >
+                <div className="cauldron-herb" />
+              </div>
               <div className="cauldron-name">{cauldronDef.name}</div>
               <div className="grind-bar">
                 <div
@@ -226,6 +224,91 @@ export function Hud() {
           )}
         </div>
       </div>
+    </>
+  )
+}
+
+function IngredientDraggable({
+  itemId,
+  name,
+  qty,
+  color,
+  disabled,
+}: {
+  itemId: string
+  name: string
+  qty: number
+  color: number
+  disabled: boolean
+}) {
+  const addToCauldron = useGameStore((s) => s.addToCauldron)
+  const [dragging, setDragging] = useState(false)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const overRef = useRef(false)
+
+  useEffect(() => {
+    if (!dragging) return
+
+    const checkOver = (x: number, y: number): boolean => {
+      const el = document.getElementById('cauldron-drop-target')
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+    }
+
+    const onMove = (e: PointerEvent) => {
+      setPos({ x: e.clientX, y: e.clientY })
+      overRef.current = checkOver(e.clientX, e.clientY)
+    }
+    const onUp = () => {
+      if (overRef.current) addToCauldron(itemId)
+      overRef.current = false
+      setDragging(false)
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onUp)
+    return () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+    }
+  }, [dragging, itemId, addToCauldron])
+
+  const start = (e: React.PointerEvent) => {
+    if (disabled) return
+    e.preventDefault()
+    setPos({ x: e.clientX, y: e.clientY })
+    setDragging(true)
+  }
+
+  const colorHex = hexColor(color)
+
+  return (
+    <>
+      <div
+        className={`ingredient ${disabled ? 'disabled' : ''} ${dragging ? 'dragging' : ''}`}
+        onPointerDown={start}
+        title="Arrastra al caldero"
+      >
+        <span
+          className="ingredient-swatch"
+          style={{ background: colorHex }}
+        />
+        <span className="ingredient-name">{name}</span>
+        <span className="ingredient-qty">x{qty}</span>
+      </div>
+      {dragging && (
+        <span
+          className="ingredient-ghost"
+          style={{
+            left: pos.x,
+            top: pos.y,
+            background: colorHex,
+          }}
+        />
+      )}
     </>
   )
 }

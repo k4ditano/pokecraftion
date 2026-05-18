@@ -362,9 +362,10 @@ body {
   color: var(--sk-ink);
   font-family: var(--sk-font-hand);
   font-size: 15px;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: var(--sk-shadow-sm);
   min-height: 34px;
+  user-select: none;
 }
 
 .ingredient::before {
@@ -375,23 +376,34 @@ body {
   box-shadow: var(--sk-inner-hi);
 }
 
-.ingredient:hover:not(:disabled) {
+.ingredient:hover:not(.disabled) {
   filter: brightness(1.05);
 }
 
-.ingredient:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+.ingredient:active:not(.disabled) {
+  cursor: grabbing;
 }
 
-.ingredient:disabled {
+.ingredient.disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.ingredient.selected {
-  outline: 2px solid var(--sk-warn);
-  outline-offset: 2px;
+.ingredient.dragging {
+  opacity: 0.4;
+  outline: 2px dashed var(--sk-warn);
+}
+
+.ingredient-ghost {
+  position: fixed;
+  width: 28px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 200;
+  transform: translate(-50%, -50%);
+  border: 3px solid var(--sk-ink);
+  clip-path: polygon(20% 0, 80% 0, 80% 25%, 100% 35%, 100% 100%, 0 100%, 0 35%, 20% 25%);
+  filter: drop-shadow(0 4px 0 rgba(42, 37, 64, 0.5));
 }
 
 .ingredient-swatch {
@@ -434,31 +446,88 @@ body {
 }
 
 .cauldron-vessel {
-  width: 76px;
-  height: 60px;
+  width: 88px;
+  height: 70px;
   position: relative;
+  transition: filter 0.1s;
 }
 
+/* Outer pot shell — partly transparent glass so the herb shows */
 .cauldron-vessel::before {
   content: '';
   position: absolute;
   inset: 14px 4px 0 4px;
-  background: var(--sk-ink);
+  background: rgba(42, 37, 64, 0.18);
   border: 3px solid var(--sk-ink);
   clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
+  box-shadow:
+    inset 0 -10px 0 rgba(42, 37, 64, 0.25),
+    inset 0 0 0 1px rgba(255, 245, 220, 0.4);
 }
 
+/* Rim / handles bar */
 .cauldron-vessel::after {
   content: '';
   position: absolute;
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 70%;
-  height: 14px;
-  background: var(--cauldron-liquid, var(--sk-ink-faint));
-  border: 3px solid var(--sk-ink);
+  width: 86%;
+  height: 12px;
+  background: var(--sk-ink);
+  border: 2px solid var(--sk-ink);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.cauldron-full {
+  /* liquid pool inside the pot (drawn as inner shadow on ::before via overlay) */
+}
+
+.cauldron-empty {
+  cursor: copy;
+}
+
+.cauldron-empty:hover {
+  filter: brightness(1.08);
+}
+
+.cauldron-hint {
+  position: absolute;
+  inset: 28px 8px 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sk-font-mono);
+  font-size: 9px;
+  color: var(--sk-ink-faint);
+  letter-spacing: 0.06em;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Herb sitting in the cauldron — squashes as grind rises */
+.cauldron-herb {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  background: var(--herb-color, var(--sk-accent-2));
+  border: 2px solid var(--sk-ink);
+  clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
+  transform: translate(-50%, 0) scale(var(--herb-scale, 1));
+  transform-origin: 50% 100%;
+  transition: transform 0.18s ease;
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+
+/* Liquid pool under the herb — visible since front is translucent */
+.cauldron-full::after {
+  background: var(--cauldron-liquid, var(--sk-ink-faint));
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 245, 220, 0.25);
 }
 
 .cauldron-name {

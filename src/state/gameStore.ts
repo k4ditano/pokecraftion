@@ -353,7 +353,6 @@ export const useGameStore = create<GameState>((set) => ({
       const sliced = slicePathByFraction(def.path, state.cauldron.grind)
       const waypoints = transformPath(sliced, state.playerPos, state.aimAngle)
       return {
-        cauldron: null,
         pendingMovement: { waypoints, speed: MOVE_SPEED, kind: 'ingredient' },
         isPouring: true,
       }
@@ -387,7 +386,15 @@ export const useGameStore = create<GameState>((set) => ({
     }),
 
   consumePendingMovement: () =>
-    set({ pendingMovement: null, isPouring: false }),
+    set((state) => {
+      const wasIngredient =
+        state.pendingMovement?.kind === 'ingredient'
+      return {
+        pendingMovement: null,
+        isPouring: false,
+        cauldron: wasIngredient ? null : state.cauldron,
+      }
+    }),
 
   damageFromHazard: () =>
     set((state) => ({ water: Math.max(0, state.water - 1) })),

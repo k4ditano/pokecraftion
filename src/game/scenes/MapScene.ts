@@ -406,12 +406,21 @@ export class MapScene extends Phaser.Scene {
   }
 
   private drawCauldronPreview(): void {
-    if (this.movement) return
     const state = useGameStore.getState()
     this.previewGfx.clear()
     if (!state.cauldron) return
     const def = getIngredient(state.cauldron.ingredientId)
     if (!def) return
+
+    // While pouring, the active path is locked in this.movement.waypoints.
+    // Show that path so the user keeps seeing the pattern as it travels.
+    if (this.movement) {
+      this.drawWaypoints(this.movement.waypoints, def.color, 0.95, 3)
+      const last = this.movement.waypoints[this.movement.waypoints.length - 1]
+      this.previewGfx.fillStyle(def.color, 1)
+      this.previewGfx.fillCircle(last.x, last.y, 6)
+      return
+    }
 
     const fullRotated = transformPath(
       def.path,
@@ -420,13 +429,7 @@ export class MapScene extends Phaser.Scene {
     )
 
     if (fullRotated.length >= 2) {
-      this.previewGfx.lineStyle(2, def.color, 0.25)
-      this.previewGfx.beginPath()
-      this.previewGfx.moveTo(fullRotated[0].x, fullRotated[0].y)
-      for (let i = 1; i < fullRotated.length; i++) {
-        this.previewGfx.lineTo(fullRotated[i].x, fullRotated[i].y)
-      }
-      this.previewGfx.strokePath()
+      this.drawWaypoints(fullRotated, def.color, 0.25, 2)
       const ghostEnd = fullRotated[fullRotated.length - 1]
       this.previewGfx.fillStyle(def.color, 0.3)
       this.previewGfx.fillCircle(ghostEnd.x, ghostEnd.y, 5)
@@ -436,18 +439,28 @@ export class MapScene extends Phaser.Scene {
       const sliced = slicePathByFraction(def.path, state.cauldron.grind)
       if (sliced.length >= 2) {
         const ground = transformPath(sliced, state.playerPos, state.aimAngle)
-        this.previewGfx.lineStyle(3, def.color, 0.95)
-        this.previewGfx.beginPath()
-        this.previewGfx.moveTo(ground[0].x, ground[0].y)
-        for (let i = 1; i < ground.length; i++) {
-          this.previewGfx.lineTo(ground[i].x, ground[i].y)
-        }
-        this.previewGfx.strokePath()
+        this.drawWaypoints(ground, def.color, 0.95, 3)
         const end = ground[ground.length - 1]
         this.previewGfx.fillStyle(def.color, 1)
         this.previewGfx.fillCircle(end.x, end.y, 6)
       }
     }
+  }
+
+  private drawWaypoints(
+    pts: Vec2[],
+    color: number,
+    alpha: number,
+    width: number,
+  ): void {
+    if (pts.length < 2) return
+    this.previewGfx.lineStyle(width, color, alpha)
+    this.previewGfx.beginPath()
+    this.previewGfx.moveTo(pts[0].x, pts[0].y)
+    for (let i = 1; i < pts.length; i++) {
+      this.previewGfx.lineTo(pts[i].x, pts[i].y)
+    }
+    this.previewGfx.strokePath()
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
