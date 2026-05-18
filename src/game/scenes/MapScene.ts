@@ -590,9 +590,45 @@ export class MapScene extends Phaser.Scene {
             sap.setStrokeStyle(2, INK_HEX)
             c.add(sap)
           }
+          // Occasionally drift a tiny growth sparkle upward
+          if (Math.random() < 0.012) {
+            this.spawnGrowSparkle(
+              plot.pos.x + (Math.random() - 0.5) * 26,
+              plot.pos.y - 4,
+              ing?.color ?? 0x4a8a3d,
+            )
+          }
+        }
+      } else {
+        // Empty + has seeds → show "+" hint
+        const hasSeeds = Object.values(state.seeds).some((q) => q > 0)
+        if (hasSeeds) {
+          const plus = this.add.text(0, 0, '+', {
+            fontFamily: '"Press Start 2P", monospace',
+            fontSize: '16px',
+            color: '#fff5dc',
+            stroke: '#2a2540',
+            strokeThickness: 3,
+          })
+          plus.setOrigin(0.5)
+          c.add(plus)
         }
       }
     }
+  }
+
+  private spawnGrowSparkle(x: number, y: number, color: number): void {
+    const sp = this.add.circle(x, y, 2, color)
+    sp.setStrokeStyle(1, 0x2a2540)
+    sp.setDepth(13)
+    this.tweens.add({
+      targets: sp,
+      y: y - 28,
+      alpha: 0,
+      duration: 850 + Math.random() * 200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => sp.destroy(),
+    })
   }
 
   private handlePlotClick(plotId: string): void {
@@ -683,10 +719,33 @@ export class MapScene extends Phaser.Scene {
 
   private teleport(target: Vec2): void {
     if (!this.movement) return
+    const src = { x: this.playerPawn.x, y: this.playerPawn.y }
+    this.spawnPortalBurst(src.x, src.y)
+    this.spawnPortalBurst(target.x, target.y)
     this.playerPawn.setPosition(target.x, target.y)
     this.cameras.main.flash(180, 180, 110, 240)
     this.revealAround(target)
     this.finishMovement(target)
+  }
+
+  private spawnPortalBurst(x: number, y: number): void {
+    for (let i = 0; i < 14; i++) {
+      const angle = (i / 14) * Math.PI * 2 + Math.random() * 0.2
+      const dist = 45 + Math.random() * 25
+      const sp = this.add.circle(x, y, 5 + Math.random() * 3, 0x7c5cc4)
+      sp.setStrokeStyle(2, 0x2a2540)
+      sp.setDepth(16)
+      this.tweens.add({
+        targets: sp,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        alpha: 0,
+        scale: 0.2,
+        duration: 550 + Math.random() * 200,
+        ease: 'Cubic.easeOut',
+        onComplete: () => sp.destroy(),
+      })
+    }
   }
 
   private checkHazardsAt(pos: Vec2): void {

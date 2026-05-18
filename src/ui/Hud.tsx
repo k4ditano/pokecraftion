@@ -275,6 +275,7 @@ function CauldronView() {
           <>
             <div className="cauldron-liquid" />
             <PourBubbles color={colorHex} />
+            <FireFlames />
           </>
         )}
         {particles.map((p) => (
@@ -309,6 +310,38 @@ function CauldronView() {
         </button>
       </div>
     </div>
+  )
+}
+
+function FireFlames() {
+  const [flames, setFlames] = useState<{ id: number; x: number; size: number }[]>([])
+  const idRef = useRef(0)
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const id = ++idRef.current
+      const x = 32 + Math.random() * 48
+      const size = 6 + Math.floor(Math.random() * 4)
+      setFlames((f) => [...f, { id, x, size }])
+      window.setTimeout(() => {
+        setFlames((f) => f.filter((ff) => ff.id !== id))
+      }, 700)
+    }, 160)
+    return () => clearInterval(interval)
+  }, [])
+  return (
+    <>
+      {flames.map((f) => (
+        <span
+          key={f.id}
+          className="cauldron-flame"
+          style={{
+            left: f.x,
+            width: f.size,
+            height: f.size * 1.5,
+          }}
+        />
+      ))}
+    </>
   )
 }
 

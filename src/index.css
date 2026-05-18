@@ -579,6 +579,23 @@ body {
   50% { transform: translateX(-50%) scaleY(1.08); }
 }
 
+/* Fire flames flickering under cauldron while pouring */
+.cauldron-flame {
+  position: absolute;
+  bottom: 6px;
+  background: linear-gradient(to top, #cf4640 0%, #e0a020 60%, #fff5dc 100%);
+  clip-path: polygon(50% 0, 100% 55%, 80% 100%, 20% 100%, 0 55%);
+  pointer-events: none;
+  z-index: 0;
+  animation: cauldron-flame-flicker 0.7s ease-out forwards;
+}
+
+@keyframes cauldron-flame-flicker {
+  0% { transform: translateY(6px) scaleY(0.4); opacity: 0; }
+  30% { transform: translateY(0) scaleY(1.15); opacity: 1; }
+  100% { transform: translateY(-10px) scaleY(0.3); opacity: 0; }
+}
+
 /* Bubbles floating up from cauldron while pouring */
 .cauldron-bubble {
   position: absolute;
