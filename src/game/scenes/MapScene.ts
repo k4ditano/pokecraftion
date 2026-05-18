@@ -10,16 +10,16 @@ import {
 } from '../../data/map'
 import type { Hazard, Portal, Vec2 } from '../types'
 
-const PLAYER_RADIUS = 10
+const PLAYER_RADIUS = 9
 const FOG_CELL = 20
 const FOG_COLS = Math.ceil(MAP_WIDTH / FOG_CELL)
 const FOG_ROWS = Math.ceil(MAP_HEIGHT / FOG_CELL)
-const VISION_RADIUS = 160
-const VISION_FADE = 50 // outer ring partial reveal
+const VISION_RADIUS = 220
+const VISION_FADE = 40 // narrow soft edge, still mostly opaque
 // Pixel palette (sketchy.jsx pixel mode)
 const FOG_COLOR = 0x2a2540
-const FOG_ALPHA = 0.78
-const FOG_ALPHA_EDGE = 0.42
+const FOG_ALPHA = 1.0
+const FOG_ALPHA_EDGE = 0.78
 const BG_HEX = '#d8e3c4'
 const INK_HEX = 0x2a2540
 const PAPER_HEX = 0xfff5dc
@@ -84,16 +84,16 @@ export class MapScene extends Phaser.Scene {
     this.centerMarker = this.add.circle(
       MAP_CENTER.x,
       MAP_CENTER.y,
-      28,
+      26,
       WATER_HEX,
       0.85,
     )
     this.centerMarker.setStrokeStyle(3, INK_HEX, 1)
     this.centerMarker.setDepth(1)
     this.add
-      .text(MAP_CENTER.x, MAP_CENTER.y + 36, 'pozo', {
+      .text(MAP_CENTER.x, MAP_CENTER.y + 34, 'pozo', {
         fontFamily: '"JetBrains Mono", monospace',
-        fontSize: '10px',
+        fontSize: '11px',
         color: '#2a2540',
         letterSpacing: 2,
       })
@@ -351,14 +351,14 @@ export class MapScene extends Phaser.Scene {
       const textureKey = `pkmn-${c.defId}`
       if (!this.textures.exists(textureKey)) continue
       const sprite = this.add.image(c.pos.x, c.pos.y, textureKey)
-      sprite.setScale(1.4)
+      sprite.setScale(1.0)
       sprite.setDepth(3)
       this.collectibleSprites.set(c.id, sprite)
 
       const label = this.add
-        .text(c.pos.x, c.pos.y + 26, c.label.toUpperCase(), {
+        .text(c.pos.x, c.pos.y + 22, c.label.toUpperCase(), {
           fontFamily: '"JetBrains Mono", monospace',
-          fontSize: '9px',
+          fontSize: '11px',
           color: '#524a72',
           letterSpacing: 2,
         })
