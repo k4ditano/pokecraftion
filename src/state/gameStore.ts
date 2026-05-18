@@ -31,11 +31,11 @@ import {
   buildEnemyParty,
   computeDamage,
   defaultMoveFor,
-  effectivenessLabel,
   maxHpFor,
   type BattlePokemon,
 } from '../battle/battle'
 import { getMove } from '../data/moves'
+import { getPokemonData } from '../data/pokemonData'
 
 export type GamePhase = 'menu' | 'map' | 'path' | 'battle'
 
@@ -65,13 +65,23 @@ export interface PendingMovement {
   kind: 'ingredient' | 'water'
 }
 
+export interface LastAction {
+  side: 'player' | 'enemy'
+  moveType: string
+  defenderIdx: number
+  damage: number
+  effectiveness: number
+  ts: number
+}
+
 export interface BattleState {
   nodeId: string
+  trainerName: string
   playerParty: BattlePokemon[]
   enemyParty: BattlePokemon[]
   playerActiveIdx: number
   enemyActiveIdx: number
-  messages: string[]
+  lastAction: LastAction | null
   result: 'win' | 'loss' | null
 }
 
@@ -125,7 +135,6 @@ interface GameState {
 
   startBattle: (nodeId: string) => void
   advanceBattleTurn: () => void
-  nextBattleMessage: () => void
   endBattle: () => void
 
   healAtSpring: () => void
@@ -418,14 +427,12 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         battle: {
           nodeId,
+          trainerName: node.trainerName,
           playerParty,
           enemyParty,
           playerActiveIdx: firstAlive,
           enemyActiveIdx: 0,
-          messages: [
-            `${node.trainerName} te reta a un combate.`,
-            `¡Adelante, ${playerParty[firstAlive].name}!`,
-          ],
+          lastAction: null,
           result: null,
         },
         isPathOpen: false,
@@ -436,7 +443,6 @@ export const useGameStore = create<GameState>((set) => ({
     set((state) => {
       const battle = state.battle
       if (!battle || battle.result) return {}
-      if (battle.messages.length > 0) return {}
 
       const playerParty = battle.playerParty.map((p) => ({ ...p }))
       const enemyParty = battle.enemyParty.map((p) => ({ ...p }))
@@ -444,8 +450,8 @@ export const useGameStore = create<GameState>((set) => ({
       let eIdx = battle.enemyActiveIdx
       const pActive = playerParty[pIdx]
       const eActive = enemyParty[eIdx]
-      const messages: string[] = []
       let result: 'win' | 'loss' | null = null
+      let lastAction: LastAction | null = null
 
       const playerMoveId = pActive.move
       const enemyMoveId = eActive.move
@@ -459,41 +465,38 @@ export const useGameStore = create<GameState>((set) => ({
         const moveId = side === 'player' ? playerMoveId : enemyMoveId
         const move = getMove(moveId)
         if (!move) continue
-        messages.push(`${attacker.name} usa ${move.name}.`)
-        const result1 = computeDamage(attacker, defender, moveId)
-        if (!result1.hit) {
-          messages.push('¡Falló!')
+        const res = computeDamage(attacker, defender, moveId)
+        const defenderIdx = side === 'player' ? eIdx : pIdx
+        if (!res.hit || res.effectiveness === 0) {
+          lastAction = {
+            side,
+            moveType: move.type,
+            defenderIdx,
+            damage: 0,
+            effectiveness: res.effectiveness,
+            ts: Date.now(),
+          }
           continue
         }
-        if (result1.effectiveness === 0) {
-          messages.push('No tiene efecto…')
-          continue
+        defender.hp = Math.max(0, defender.hp - res.damage)
+        lastAction = {
+          side,
+          moveType: move.type,
+          defenderIdx,
+          damage: res.damage,
+          effectiveness: res.effectiveness,
+          ts: Date.now(),
         }
-        defender.hp = Math.max(0, defender.hp - result1.damage)
-        messages.push(`Inflige ${result1.damage} de daño.`)
-        const effLabel = effectivenessLabel(result1.effectiveness)
-        if (effLabel) messages.push(effLabel + '.')
 
         if (defender.hp <= 0) {
-          messages.push(`${defender.name} se debilita.`)
           if (side === 'player') {
             const next = nextAlive(enemyParty, eIdx)
-            if (next === -1) {
-              result = 'win'
-              messages.push('¡Has ganado el combate!')
-            } else {
-              eIdx = next
-              messages.push(`Rival envía a ${enemyParty[eIdx].name}.`)
-            }
+            if (next === -1) result = 'win'
+            else eIdx = next
           } else {
             const next = nextAlive(playerParty, pIdx)
-            if (next === -1) {
-              result = 'loss'
-              messages.push('Te has quedado sin Pokémon.')
-            } else {
-              pIdx = next
-              messages.push(`Envías a ${playerParty[pIdx].name}.`)
-            }
+            if (next === -1) result = 'loss'
+            else pIdx = next
           }
           break
         }
@@ -506,20 +509,8 @@ export const useGameStore = create<GameState>((set) => ({
           enemyParty,
           playerActiveIdx: pIdx,
           enemyActiveIdx: eIdx,
-          messages,
+          lastAction,
           result,
-        },
-      }
-    }),
-
-  nextBattleMessage: () =>
-    set((state) => {
-      if (!state.battle) return {}
-      if (state.battle.messages.length === 0) return {}
-      return {
-        battle: {
-          ...state.battle,
-          messages: state.battle.messages.slice(1),
         },
       }
     }),
@@ -551,6 +542,10 @@ export const useGameStore = create<GameState>((set) => ({
       if (!member) return {}
       const def = getMtDef(mtId)
       if (!def) return {}
+      const move = getMove(def.moveId)
+      if (!move) return {}
+      const data = getPokemonData(member.pokemonId)
+      if (!data.types.includes(move.type)) return {}
       const newParty = state.party.map((m, i) =>
         i === partyIdx ? { ...m, move: def.moveId } : m,
       )

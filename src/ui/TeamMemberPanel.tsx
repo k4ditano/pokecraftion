@@ -54,8 +54,18 @@ export function TeamMemberPanel() {
           {mts.map((mt) => {
             const move = getMove(mt.moveId)
             const sameAsCurrent = mt.moveId === member.move
+            const typeOk = move ? data.types.includes(move.type) : false
+            const reason = !typeOk
+              ? 'Tipo incompatible con el Pokémon'
+              : sameAsCurrent
+                ? 'Ya tiene este movimiento'
+                : 'Reemplaza el movimiento actual'
+            const disabled = sameAsCurrent || !typeOk
             return (
-              <div key={mt.id} className="mt-row">
+              <div
+                key={mt.id}
+                className={`mt-row ${typeOk ? '' : 'incompatible'}`}
+              >
                 <span>
                   {mt.name}{' '}
                   <span className="dim">
@@ -64,9 +74,9 @@ export function TeamMemberPanel() {
                 </span>
                 <button
                   className="btn pour"
-                  disabled={sameAsCurrent}
+                  disabled={disabled}
                   onClick={() => applyMt(mt.id, teamPanelIdx)}
-                  title={sameAsCurrent ? 'Ya tiene este movimiento' : 'Reemplaza el movimiento actual'}
+                  title={reason}
                 >
                   Aplicar (×{mt.qty})
                 </button>
