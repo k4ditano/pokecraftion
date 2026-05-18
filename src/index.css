@@ -33,15 +33,29 @@ body,
 
 .hud {
   position: absolute;
-  top: 16px;
-  left: 16px;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   font-family: monospace;
   font-size: 13px;
   pointer-events: none;
+}
+
+.hud.interactive {
+  pointer-events: auto;
+}
+
+.hud-top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.hud-bottom {
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 320px;
 }
 
 .hud-row {
@@ -55,4 +69,93 @@ body,
 
 .hud-value {
   color: #fff;
+}
+
+.inventory-title {
+  color: #888;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+
+.party-title {
+  margin-top: 12px;
+}
+
+.inventory {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ingredient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #f0f0f0;
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.1s;
+}
+
+.ingredient:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ingredient:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ingredient:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ingredient.selected {
+  background: rgba(255, 235, 59, 0.18);
+  border-color: #ffeb3b;
+}
+
+.ingredient-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+.ingredient-name {
+  white-space: nowrap;
+}
+
+.ingredient-qty {
+  color: #aaa;
+}
+
+.party {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.party-member {
+  padding: 4px 8px;
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.lvl {
+  color: #aaa;
+  margin-left: 4px;
 }
