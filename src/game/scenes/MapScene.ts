@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { useGameStore } from '../../state/gameStore'
 import { getIngredient } from '../../data/ingredients'
+import { getPokemonData } from '../../data/pokemonData'
 import { spriteUrlFor } from '../../services/pokeapi'
 import { slicePathByFraction, transformPath } from '../pathUtils'
 import {
@@ -49,6 +50,11 @@ export class MapScene extends Phaser.Scene {
   private fogDirty = true
   private collectibleSprites = new Map<string, Phaser.GameObjects.Image>()
   private collectibleLabels = new Map<string, Phaser.GameObjects.Text>()
+  private collectibleHome = new Map<string, Vec2>()
+  private collectibleType = new Map<string, string[]>()
+  private dropZoneGfx!: Phaser.GameObjects.Graphics
+  private dropZoneRect = { x: 0, y: 0, w: 0, h: 0 }
+  private toolMode: 'fire' | 'rock' | null = null
   private movement: ActiveMovement | null = null
   private unsubStore: (() => void) | null = null
 
@@ -103,6 +109,28 @@ export class MapScene extends Phaser.Scene {
     this.portalGfx = this.add.graphics()
     this.portalGfx.setDepth(2)
     this.drawPortals()
+
+    // Drop zone for dragging decorative pokémons onto the cauldron
+    const dzW = 360
+    const dzH = 140
+    this.dropZoneRect = {
+      x: (MAP_WIDTH - dzW) / 2,
+      y: MAP_HEIGHT - dzH - 20,
+      w: dzW,
+      h: dzH,
+    }
+    this.dropZoneGfx = this.add.graphics()
+    this.dropZoneGfx.setDepth(11)
+    this.flashDropZone(false, 'idle')
+    this.add
+      .text(MAP_WIDTH / 2, MAP_HEIGHT - 90, 'CALDERO\narrastra pokémon', {
+        fontFamily: '"JetBrains Mono", monospace',
+        fontSize: '11px',
+        color: '#2a2540',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(12)
 
     this.hazardGfx = this.add.graphics()
     this.hazardGfx.setDepth(2)
@@ -160,6 +188,10 @@ export class MapScene extends Phaser.Scene {
     this.drawCauldronPreview()
 
     if (this.fogDirty) this.redrawFog()
+
+    if (this.toolMode === 'rock') {
+      useGameStore.getState().incrementGrind(0.6 * (delta / 1000))
+    }
 
     if (!this.movement) return
 
@@ -390,7 +422,24 @@ export class MapScene extends Phaser.Scene {
       const sprite = this.add.image(c.pos.x, c.pos.y, textureKey)
       sprite.setScale(1.0)
       sprite.setDepth(3)
+      sprite.setInteractive({ draggable: true, useHandCursor: true })
+      this.input.setDraggable(sprite)
+      const data = getPokemonData(Number(c.defId))
       this.collectibleSprites.set(c.id, sprite)
+      this.collectibleHome.set(c.id, { x: c.pos.x, y: c.pos.y })
+      this.collectibleType.set(c.id, data.types)
+      sprite.on('drag', (_p: unknown, dragX: number, dragY: number) => {
+        sprite.x = dragX
+        sprite.y = dragY
+        const inZone = this.posInDropZone(dragX, dragY)
+        const types = this.collectibleType.get(c.id) ?? []
+        this.updateToolMode(inZone, types)
+      })
+      sprite.on('dragend', () => {
+        const home = this.collectibleHome.get(c.id)
+        if (home) sprite.setPosition(home.x, home.y)
+        this.updateToolMode(false, [])
+      })
 
       const label = this.add
         .text(c.pos.x, c.pos.y + 22, c.label.toUpperCase(), {
@@ -468,13 +517,46 @@ export class MapScene extends Phaser.Scene {
     state.setAim(angle)
   }
 
-  private checkCollisions(pos: Vec2): void {
-    const store = useGameStore.getState()
-    for (const c of store.collectibles) {
-      if (overlaps(pos, c.pos, c.radius)) {
-        store.collectItem(c.id)
+  private checkCollisions(_pos: Vec2): void {
+    // Capture-on-touch removed: map pokémons are draggable tools, not
+    // captures. Real party comes from elsewhere.
+    void _pos
+  }
+
+  private posInDropZone(x: number, y: number): boolean {
+    const z = this.dropZoneRect
+    return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h
+  }
+
+  private updateToolMode(inZone: boolean, types: string[]): void {
+    const isFire = inZone && types.includes('fire')
+    const isRock = inZone && (types.includes('rock') || types.includes('ground'))
+    if (isFire) {
+      if (this.toolMode !== 'fire') {
+        this.toolMode = 'fire'
+        useGameStore.getState().pourCauldron()
       }
+      this.flashDropZone(true, 'fire')
+    } else if (isRock) {
+      if (this.toolMode !== 'rock') this.toolMode = 'rock'
+      this.flashDropZone(true, 'rock')
+    } else {
+      if (this.toolMode === 'fire') useGameStore.getState().stopPour()
+      this.toolMode = null
+      this.flashDropZone(inZone, 'idle')
     }
+  }
+
+  private flashDropZone(active: boolean, kind: 'fire' | 'rock' | 'idle'): void {
+    const z = this.dropZoneRect
+    this.dropZoneGfx.clear()
+    const fillColor =
+      kind === 'fire' ? 0xcf4640 : kind === 'rock' ? 0x7c5cc4 : 0xfff5dc
+    const fillAlpha = active ? 0.5 : 0.18
+    this.dropZoneGfx.fillStyle(fillColor, fillAlpha)
+    this.dropZoneGfx.fillRect(z.x, z.y, z.w, z.h)
+    this.dropZoneGfx.lineStyle(3, 0x2a2540, 1)
+    this.dropZoneGfx.strokeRect(z.x, z.y, z.w, z.h)
   }
 
   private checkPortalAt(pos: Vec2): void {

@@ -204,9 +204,18 @@ function buildInitialState(): InitialStateFields {
     }
   }
 
+  const starterParty: PartyMember[] = [
+    { pokemonId: 16, name: 'Pidgey', level: 5, hp: 0, maxHp: 0, move: defaultMoveFor(16) },
+    { pokemonId: 19, name: 'Rattata', level: 5, hp: 0, maxHp: 0, move: defaultMoveFor(19) },
+    { pokemonId: 25, name: 'Pikachu', level: 5, hp: 0, maxHp: 0, move: defaultMoveFor(25) },
+  ].map((p) => {
+    const m = maxHpFor(p.pokemonId, p.level)
+    return { ...p, hp: m, maxHp: m }
+  })
+
   return {
     phase: 'map',
-    party: [],
+    party: starterParty,
     inventory,
     collectibles: STARTER_COLLECTIBLES.map((c) => ({ ...c })),
     portals: STARTER_PORTALS.map((p) => ({ ...p })),
