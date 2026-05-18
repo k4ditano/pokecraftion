@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Collectible, Vec2 } from '../game/types'
+import type { Collectible, Hazard, Portal, Vec2 } from '../game/types'
 import { getIngredient } from '../data/ingredients'
 import { slicePathByFraction, transformPath } from '../game/pathUtils'
 import {
@@ -11,8 +11,10 @@ import {
 } from '../data/map'
 import {
   STARTER_COLLECTIBLES,
+  STARTER_HAZARDS,
   STARTER_INVENTORY,
   STARTER_PLAYER_POS,
+  STARTER_PORTALS,
 } from '../data/starter'
 
 export type GamePhase = 'menu' | 'map' | 'path' | 'battle'
@@ -47,6 +49,8 @@ interface GameState {
   party: PartyMember[]
   inventory: InventoryItem[]
   collectibles: Collectible[]
+  portals: Portal[]
+  hazards: Hazard[]
   playerPos: Vec2
 
   water: number
@@ -68,6 +72,7 @@ interface GameState {
   pourCauldron: () => void
   pourWater: () => void
   consumePendingMovement: () => void
+  damageFromHazard: () => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -75,6 +80,8 @@ export const useGameStore = create<GameState>((set) => ({
   party: [],
   inventory: STARTER_INVENTORY.map((i) => ({ ...i })),
   collectibles: STARTER_COLLECTIBLES.map((c) => ({ ...c })),
+  portals: STARTER_PORTALS.map((p) => ({ ...p })),
+  hazards: STARTER_HAZARDS.map((h) => ({ ...h })),
   playerPos: { ...STARTER_PLAYER_POS },
 
   water: WATER_INITIAL,
@@ -208,4 +215,7 @@ export const useGameStore = create<GameState>((set) => ({
     }),
 
   consumePendingMovement: () => set({ pendingMovement: null }),
+
+  damageFromHazard: () =>
+    set((state) => ({ water: Math.max(0, state.water - 1) })),
 }))
