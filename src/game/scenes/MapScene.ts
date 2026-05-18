@@ -456,50 +456,70 @@ export class MapScene extends Phaser.Scene {
     if (!def) return
 
     // While pouring, the active path is locked in this.movement.waypoints.
-    // Show that path so the user keeps seeing the pattern as it travels.
     if (this.movement) {
-      this.drawWaypoints(this.movement.waypoints, def.color, 0.95, 3)
+      this.drawDashed(this.movement.waypoints, 0x000000, 1, 7, 12, 8)
       const last = this.movement.waypoints[this.movement.waypoints.length - 1]
-      this.previewGfx.fillStyle(def.color, 1)
-      this.previewGfx.fillCircle(last.x, last.y, 6)
+      this.previewGfx.fillStyle(0x000000, 1)
+      this.previewGfx.fillCircle(last.x, last.y, 7)
       return
     }
 
     const fullPath = transformPath(def.path, state.playerPos, 0)
 
     if (fullPath.length >= 2) {
-      this.drawWaypoints(fullPath, def.color, 0.25, 2)
+      this.drawDashed(fullPath, 0x000000, 0.45, 5, 10, 8)
       const ghostEnd = fullPath[fullPath.length - 1]
-      this.previewGfx.fillStyle(def.color, 0.3)
-      this.previewGfx.fillCircle(ghostEnd.x, ghostEnd.y, 5)
+      this.previewGfx.fillStyle(0x000000, 0.5)
+      this.previewGfx.fillCircle(ghostEnd.x, ghostEnd.y, 6)
     }
 
     if (state.cauldron.grind > 0) {
       const sliced = slicePathByFraction(def.path, state.cauldron.grind)
       if (sliced.length >= 2) {
         const ground = transformPath(sliced, state.playerPos, 0)
-        this.drawWaypoints(ground, def.color, 0.95, 3)
+        this.drawDashed(ground, 0x000000, 1, 7, 12, 8)
         const end = ground[ground.length - 1]
-        this.previewGfx.fillStyle(def.color, 1)
-        this.previewGfx.fillCircle(end.x, end.y, 6)
+        this.previewGfx.fillStyle(0x000000, 1)
+        this.previewGfx.fillCircle(end.x, end.y, 7)
       }
     }
   }
 
-  private drawWaypoints(
+  private drawDashed(
     pts: Vec2[],
     color: number,
     alpha: number,
     width: number,
+    dashLen: number,
+    gapLen: number,
   ): void {
     if (pts.length < 2) return
     this.previewGfx.lineStyle(width, color, alpha)
-    this.previewGfx.beginPath()
-    this.previewGfx.moveTo(pts[0].x, pts[0].y)
+    const period = dashLen + gapLen
+    let phase = 0
     for (let i = 1; i < pts.length; i++) {
-      this.previewGfx.lineTo(pts[i].x, pts[i].y)
+      const a = pts[i - 1]
+      const b = pts[i]
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const len = Math.hypot(dx, dy)
+      if (len === 0) continue
+      const nx = dx / len
+      const ny = dy / len
+      let d = -phase
+      while (d < len) {
+        const start = Math.max(0, d)
+        const end = Math.min(d + dashLen, len)
+        if (end > start) {
+          this.previewGfx.beginPath()
+          this.previewGfx.moveTo(a.x + nx * start, a.y + ny * start)
+          this.previewGfx.lineTo(a.x + nx * end, a.y + ny * end)
+          this.previewGfx.strokePath()
+        }
+        d += period
+      }
+      phase = ((phase + len) % period + period) % period
     }
-    this.previewGfx.strokePath()
   }
 
   private checkCollisions(_pos: Vec2): void {

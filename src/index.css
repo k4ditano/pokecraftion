@@ -500,10 +500,10 @@ body {
 /* Mint sprite sitting in the cauldron — splits in half + scales with grind */
 .cauldron-herb-stage {
   position: absolute;
-  top: 22px;
+  top: 4px;
   left: 50%;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 2;
@@ -513,8 +513,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   image-rendering: pixelated;
   filter: drop-shadow(1px 2px 0 rgba(42, 37, 64, 0.4));
   transition:
@@ -543,7 +543,7 @@ body {
 /* Pile of crushed ingredient after full grind — flat mound */
 .cauldron-pile {
   position: absolute;
-  top: 56px;
+  top: 30px;
   left: 50%;
   transform: translateX(-50%);
   width: 56px;
@@ -560,11 +560,11 @@ body {
 /* Liquid pool — only after heat (pouring) */
 .cauldron-liquid {
   position: absolute;
-  top: 32px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  width: 64px;
-  height: 18px;
+  width: 70px;
+  height: 22px;
   background: var(--cauldron-liquid, var(--sk-ink-faint));
   border-radius: 50%;
   box-shadow:
@@ -666,7 +666,7 @@ body {
 /* ─── Tool dock (drag pokémon → caldero) ──────────────────────────── */
 
 .tools-section {
-  min-width: 240px;
+  min-width: 340px;
   align-items: center;
 }
 
@@ -677,8 +677,8 @@ body {
 
 .tool-btn {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 110px;
+  height: 110px;
   background: transparent;
   border: 0;
   padding: 0;
@@ -692,11 +692,11 @@ body {
 }
 
 .tool-btn img {
-  width: 72px;
-  height: 72px;
+  width: 104px;
+  height: 104px;
   image-rendering: pixelated;
   pointer-events: none;
-  filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.45));
+  filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.5));
   transition: transform 0.08s, filter 0.1s;
 }
 
@@ -728,8 +728,8 @@ body {
 
 .tool-ghost {
   position: fixed;
-  width: 96px;
-  height: 96px;
+  width: 112px;
+  height: 112px;
   pointer-events: none;
   image-rendering: pixelated;
   transform: translate(-50%, -50%);
