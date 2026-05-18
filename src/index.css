@@ -416,8 +416,8 @@ body {
 }
 
 .ingredient-sprite {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   image-rendering: pixelated;
   pointer-events: none;
   flex-shrink: 0;
@@ -450,7 +450,7 @@ body {
 /* ─── Cauldron section ────────────────────────────────────────────── */
 
 .cauldron-section {
-  min-width: 280px;
+  min-width: 200px;
   align-items: center;
 }
 
@@ -463,8 +463,8 @@ body {
 }
 
 .cauldron-vessel {
-  width: 160px;
-  height: 160px;
+  width: 112px;
+  height: 112px;
   position: relative;
   background-image: url('/assets/cauldron-cell-1.png');
   background-size: 100% 100%;
@@ -484,49 +484,75 @@ body {
 
 .cauldron-hint {
   position: absolute;
-  inset: auto 12px 8px 12px;
-  bottom: 8px;
+  inset: auto 8px 6px 8px;
+  bottom: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--sk-font-mono);
-  font-size: 10px;
+  font-size: 8px;
   color: var(--sk-ink-faint);
   letter-spacing: 0.06em;
   text-align: center;
   pointer-events: none;
 }
 
-/* Herb sitting in the cauldron — squashes as grind rises */
-.cauldron-herb {
+/* Mint sprite sitting in the cauldron — splits in half + scales with grind */
+.cauldron-herb-stage {
   position: absolute;
-  top: 28px;
+  top: 22px;
   left: 50%;
-  width: 40px;
-  height: 36px;
-  background: var(--herb-color, var(--sk-accent-2));
-  border: 3px solid var(--sk-ink);
-  clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
-  transform: translate(-50%, 0) scale(var(--herb-scale, 1));
-  transform-origin: 50% 100%;
-  transition: transform 0.18s ease;
-  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35);
+  width: 56px;
+  height: 56px;
+  transform: translateX(-50%);
+  pointer-events: none;
   z-index: 2;
+}
+
+.cauldron-herb-half {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 56px;
+  height: 56px;
+  image-rendering: pixelated;
+  filter: drop-shadow(1px 2px 0 rgba(42, 37, 64, 0.4));
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.cauldron-herb-half.left {
+  clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+  transform-origin: 50% 50%;
+  transform:
+    translate(calc(var(--grind, 0) * -10px), calc(var(--grind, 0) * 4px))
+    rotate(calc(var(--grind, 0) * -22deg))
+    scale(calc(1 - var(--grind, 0) * 0.45));
+}
+
+.cauldron-herb-half.right {
+  clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+  transform-origin: 50% 50%;
+  transform:
+    translate(calc(var(--grind, 0) * 10px), calc(var(--grind, 0) * 4px))
+    rotate(calc(var(--grind, 0) * 22deg))
+    scale(calc(1 - var(--grind, 0) * 0.45));
 }
 
 /* Pile of crushed ingredient after full grind — flat mound */
 .cauldron-pile {
   position: absolute;
-  top: 50px;
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
-  width: 72px;
-  height: 14px;
+  width: 56px;
+  height: 10px;
   background: var(--herb-color, var(--sk-accent-2));
-  border: 3px solid var(--sk-ink);
+  border: 2px solid var(--sk-ink);
   border-radius: 50%;
   box-shadow:
-    inset 0 -3px 0 rgba(0, 0, 0, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
     inset 0 2px 0 rgba(255, 255, 255, 0.18);
   z-index: 2;
 }
@@ -534,11 +560,11 @@ body {
 /* Liquid pool — only after heat (pouring) */
 .cauldron-liquid {
   position: absolute;
-  top: 38px;
+  top: 32px;
   left: 50%;
   transform: translateX(-50%);
-  width: 88px;
-  height: 24px;
+  width: 64px;
+  height: 18px;
   background: var(--cauldron-liquid, var(--sk-ink-faint));
   border-radius: 50%;
   box-shadow:
@@ -640,7 +666,7 @@ body {
 /* ─── Tool dock (drag pokémon → caldero) ──────────────────────────── */
 
 .tools-section {
-  min-width: 320px;
+  min-width: 240px;
   align-items: center;
 }
 
@@ -651,8 +677,8 @@ body {
 
 .tool-btn {
   position: relative;
-  width: 104px;
-  height: 104px;
+  width: 80px;
+  height: 80px;
   background: transparent;
   border: 0;
   padding: 0;
@@ -666,8 +692,8 @@ body {
 }
 
 .tool-btn img {
-  width: 96px;
-  height: 96px;
+  width: 72px;
+  height: 72px;
   image-rendering: pixelated;
   pointer-events: none;
   filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.45));

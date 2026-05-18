@@ -251,7 +251,25 @@ function CauldronView() {
           } as React.CSSProperties
         }
       >
-        {!isPouring && grind < 0.99 && <div className="cauldron-herb" />}
+        {!isPouring && grind < 0.99 && def.sprite && (
+          <div
+            className="cauldron-herb-stage"
+            style={{ ['--grind' as string]: String(grind) }}
+          >
+            <img
+              className="cauldron-herb-half left"
+              src={def.sprite}
+              alt=""
+              draggable={false}
+            />
+            <img
+              className="cauldron-herb-half right"
+              src={def.sprite}
+              alt=""
+              draggable={false}
+            />
+          </div>
+        )}
         {!isPouring && grind >= 0.99 && <div className="cauldron-pile" />}
         {isPouring && <div className="cauldron-liquid" />}
         {particles.map((p) => (
