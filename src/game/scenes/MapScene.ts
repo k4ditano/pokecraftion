@@ -366,18 +366,20 @@ export class MapScene extends Phaser.Scene {
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
     if (this.movement) return
-    const state = useGameStore.getState()
-    const origin = state.playerPos
-    const angle = Math.atan2(pointer.y - origin.y, pointer.x - origin.x)
-    state.setAim(angle)
+    if (!pointer.isDown) return
+    this.aimAt(pointer.x, pointer.y)
   }
 
-  private onPointerDown(): void {
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
     if (this.movement) return
+    this.aimAt(pointer.x, pointer.y)
+  }
+
+  private aimAt(x: number, y: number): void {
     const state = useGameStore.getState()
-    if (state.cauldron && state.cauldron.grind > 0) {
-      state.pourCauldron()
-    }
+    const origin = state.playerPos
+    const angle = Math.atan2(y - origin.y, x - origin.x)
+    state.setAim(angle)
   }
 
   private checkCollisions(pos: Vec2): void {
