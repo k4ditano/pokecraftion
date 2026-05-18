@@ -15,8 +15,15 @@ const FOG_CELL = 40
 const FOG_COLS = Math.ceil(MAP_WIDTH / FOG_CELL)
 const FOG_ROWS = Math.ceil(MAP_HEIGHT / FOG_CELL)
 const VISION_RADIUS = 115
-const FOG_COLOR = 0x000000
-const FOG_ALPHA = 0.82
+const FOG_COLOR = 0x4a2f1a
+const FOG_ALPHA = 0.75
+const PARCHMENT_HEX = '#e8d9b0'
+const INK_HEX = 0x2e1e10
+const BRASS_HEX = 0xb8893a
+const WATER_BLUE = 0x3a6a9c
+const BLOOD_RED = 0x8b2f2f
+const PAWN_COLOR = 0x4a2f1a
+const PAWN_OUTLINE = 0xb8893a
 
 interface ActiveMovement {
   waypoints: Vec2[]
@@ -55,18 +62,20 @@ export class MapScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor('#1f2a1a')
+    this.cameras.main.setBackgroundColor(PARCHMENT_HEX)
+
+    this.drawParchmentTexture()
 
     const { width } = this.scale
     this.add
       .text(
         width / 2,
         18,
-        'MAPA — añade ingrediente al caldero, muele y vierte',
+        '~ Mapa Alquímico ~',
         {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: '#aaaaaa',
+          fontFamily: 'IM Fell English SC, serif',
+          fontSize: '18px',
+          color: '#3a2817',
         },
       )
       .setOrigin(0.5, 0)
@@ -76,11 +85,19 @@ export class MapScene extends Phaser.Scene {
       MAP_CENTER.x,
       MAP_CENTER.y,
       36,
-      0x2a4a6a,
-      0.55,
+      WATER_BLUE,
+      0.5,
     )
-    this.centerMarker.setStrokeStyle(2, 0x4a7aac, 0.9)
+    this.centerMarker.setStrokeStyle(3, INK_HEX, 0.9)
     this.centerMarker.setDepth(1)
+    this.add
+      .text(MAP_CENTER.x, MAP_CENTER.y + 46, 'pozo', {
+        fontFamily: 'IM Fell English SC, serif',
+        fontSize: '12px',
+        color: '#3a2817',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(1)
 
     this.portalGfx = this.add.graphics()
     this.portalGfx.setDepth(2)
@@ -103,9 +120,9 @@ export class MapScene extends Phaser.Scene {
       start.x,
       start.y,
       PLAYER_RADIUS,
-      0xffeb3b,
+      PAWN_COLOR,
     )
-    this.playerPawn.setStrokeStyle(3, 0x000000)
+    this.playerPawn.setStrokeStyle(3, PAWN_OUTLINE)
     this.playerPawn.setDepth(10)
 
     this.revealAround(start)
@@ -255,11 +272,13 @@ export class MapScene extends Phaser.Scene {
   }
 
   private drawPortalEnd(p: Portal, pos: Vec2): void {
-    this.portalGfx.lineStyle(3, p.color, 0.9)
+    this.portalGfx.lineStyle(3, BRASS_HEX, 1)
     this.portalGfx.strokeCircle(pos.x, pos.y, p.radius)
-    this.portalGfx.fillStyle(p.color, 0.25)
+    this.portalGfx.fillStyle(p.color, 0.35)
     this.portalGfx.fillCircle(pos.x, pos.y, p.radius)
-    this.portalGfx.fillStyle(0xffffff, 0.6)
+    this.portalGfx.lineStyle(2, INK_HEX, 0.8)
+    this.portalGfx.strokeCircle(pos.x, pos.y, p.radius + 2)
+    this.portalGfx.fillStyle(BRASS_HEX, 0.9)
     this.portalGfx.fillCircle(pos.x, pos.y, 3)
   }
 
@@ -274,15 +293,35 @@ export class MapScene extends Phaser.Scene {
   private drawHazard(h: Hazard): void {
     const { x, y } = h.pos
     const r = h.radius
-    this.hazardGfx.lineStyle(3, 0xff3838, 1)
+    this.hazardGfx.lineStyle(3, BLOOD_RED, 1)
     this.hazardGfx.beginPath()
     this.hazardGfx.moveTo(x - r, y - r)
     this.hazardGfx.lineTo(x + r, y + r)
     this.hazardGfx.moveTo(x + r, y - r)
     this.hazardGfx.lineTo(x - r, y + r)
     this.hazardGfx.strokePath()
-    this.hazardGfx.fillStyle(0xff3838, 0.18)
+    this.hazardGfx.fillStyle(BLOOD_RED, 0.15)
     this.hazardGfx.fillCircle(x, y, r)
+    this.hazardGfx.lineStyle(2, INK_HEX, 0.7)
+    this.hazardGfx.strokeCircle(x, y, r + 2)
+  }
+
+  private drawParchmentTexture(): void {
+    const gfx = this.add.graphics()
+    gfx.setDepth(0)
+    gfx.fillStyle(0xc9b283, 0.1)
+    for (let i = 0; i < 80; i++) {
+      const x = Math.random() * MAP_WIDTH
+      const y = Math.random() * MAP_HEIGHT
+      const r = 2 + Math.random() * 6
+      gfx.fillCircle(x, y, r)
+    }
+    gfx.fillStyle(0xa0875a, 0.12)
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random() * MAP_WIDTH
+      const y = Math.random() * MAP_HEIGHT
+      gfx.fillRect(x, y, 1, 1)
+    }
   }
 
   private renderCollectibles(): void {
@@ -309,9 +348,9 @@ export class MapScene extends Phaser.Scene {
 
       const label = this.add
         .text(c.pos.x, c.pos.y + 36, c.label, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#dddddd',
+          fontFamily: 'IM Fell English SC, serif',
+          fontSize: '13px',
+          color: '#2e1e10',
         })
         .setOrigin(0.5, 0)
       label.setDepth(3)

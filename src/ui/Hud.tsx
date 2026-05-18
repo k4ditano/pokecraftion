@@ -1,3 +1,4 @@
+import type React from 'react'
 import { useEffect, useRef } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { INGREDIENTS } from '../data/ingredients'
@@ -103,7 +104,7 @@ export function Hud() {
                     style={{ background: def ? hexColor(def.color) : '#666' }}
                   />
                   <span className="ingredient-name">{item.name}</span>
-                  <span className="ingredient-qty">×{item.qty}</span>
+                  <span className="ingredient-qty">x{item.qty}</span>
                 </button>
               )
             })}
@@ -112,16 +113,26 @@ export function Hud() {
 
         <div className="hud-section cauldron-section">
           <div className="section-title">Caldero</div>
-          {!cauldron && <div className="empty">— vacío —</div>}
+          {!cauldron && (
+            <>
+              <div
+                className="cauldron-vessel"
+                style={
+                  { '--cauldron-liquid': 'rgba(120, 100, 70, 0.5)' } as React.CSSProperties
+                }
+              />
+              <div className="empty">— vacío —</div>
+            </>
+          )}
           {cauldron && cauldronDef && (
             <div className="cauldron">
-              <div className="cauldron-head">
-                <span
-                  className="ingredient-swatch big"
-                  style={{ background: hexColor(cauldronDef.color) }}
-                />
-                <span className="cauldron-name">{cauldronDef.name}</span>
-              </div>
+              <div
+                className="cauldron-vessel"
+                style={
+                  { '--cauldron-liquid': hexColor(cauldronDef.color) } as React.CSSProperties
+                }
+              />
+              <div className="cauldron-name">{cauldronDef.name}</div>
               <div className="grind-bar">
                 <div
                   className="grind-fill"
