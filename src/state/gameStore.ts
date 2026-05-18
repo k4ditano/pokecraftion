@@ -82,6 +82,7 @@ export interface BattleState {
   playerActiveIdx: number
   enemyActiveIdx: number
   lastAction: LastAction | null
+  pendingAttacker: 'player' | 'enemy' | null
   result: 'win' | 'loss' | null
 }
 
@@ -433,6 +434,7 @@ export const useGameStore = create<GameState>((set) => ({
           playerActiveIdx: firstAlive,
           enemyActiveIdx: 0,
           lastAction: null,
+          pendingAttacker: null,
           result: null,
         },
         isPathOpen: false,
@@ -450,56 +452,60 @@ export const useGameStore = create<GameState>((set) => ({
       let eIdx = battle.enemyActiveIdx
       const pActive = playerParty[pIdx]
       const eActive = enemyParty[eIdx]
-      let result: 'win' | 'loss' | null = null
-      let lastAction: LastAction | null = null
 
-      const playerMoveId = pActive.move
-      const enemyMoveId = eActive.move
-      const order: ('player' | 'enemy')[] =
-        pActive.speed >= eActive.speed ? ['player', 'enemy'] : ['enemy', 'player']
+      const isFirstAttackOfTurn = battle.pendingAttacker === null
+      const attackerSide: 'player' | 'enemy' = isFirstAttackOfTurn
+        ? pActive.speed >= eActive.speed
+          ? 'player'
+          : 'enemy'
+        : battle.pendingAttacker!
 
-      for (const side of order) {
-        if (result) break
-        const attacker = side === 'player' ? playerParty[pIdx] : enemyParty[eIdx]
-        const defender = side === 'player' ? enemyParty[eIdx] : playerParty[pIdx]
-        const moveId = side === 'player' ? playerMoveId : enemyMoveId
-        const move = getMove(moveId)
-        if (!move) continue
-        const res = computeDamage(attacker, defender, moveId)
-        const defenderIdx = side === 'player' ? eIdx : pIdx
-        if (!res.hit || res.effectiveness === 0) {
-          lastAction = {
-            side,
-            moveType: move.type,
-            defenderIdx,
-            damage: 0,
-            effectiveness: res.effectiveness,
-            ts: Date.now(),
-          }
-          continue
+      const attacker =
+        attackerSide === 'player' ? playerParty[pIdx] : enemyParty[eIdx]
+      const defender =
+        attackerSide === 'player' ? enemyParty[eIdx] : playerParty[pIdx]
+      const defenderIdx = attackerSide === 'player' ? eIdx : pIdx
+
+      const move = getMove(attacker.move)
+      if (!move) {
+        return {
+          battle: { ...battle, pendingAttacker: null },
         }
+      }
+
+      const res = computeDamage(attacker, defender, move.id)
+      const hit = res.hit && res.effectiveness !== 0
+      if (hit) {
         defender.hp = Math.max(0, defender.hp - res.damage)
-        lastAction = {
-          side,
-          moveType: move.type,
-          defenderIdx,
-          damage: res.damage,
-          effectiveness: res.effectiveness,
-          ts: Date.now(),
-        }
+      }
 
-        if (defender.hp <= 0) {
-          if (side === 'player') {
-            const next = nextAlive(enemyParty, eIdx)
-            if (next === -1) result = 'win'
-            else eIdx = next
-          } else {
-            const next = nextAlive(playerParty, pIdx)
-            if (next === -1) result = 'loss'
-            else pIdx = next
-          }
-          break
+      const lastAction: LastAction = {
+        side: attackerSide,
+        moveType: move.type,
+        defenderIdx,
+        damage: hit ? res.damage : 0,
+        effectiveness: res.effectiveness,
+        ts: Date.now(),
+      }
+
+      let result: 'win' | 'loss' | null = null
+      let nextPending: 'player' | 'enemy' | null = null
+
+      if (defender.hp <= 0) {
+        if (attackerSide === 'player') {
+          const next = nextAlive(enemyParty, eIdx)
+          if (next === -1) result = 'win'
+          else eIdx = next
+        } else {
+          const next = nextAlive(playerParty, pIdx)
+          if (next === -1) result = 'loss'
+          else pIdx = next
         }
+        nextPending = null
+      } else if (isFirstAttackOfTurn) {
+        nextPending = attackerSide === 'player' ? 'enemy' : 'player'
+      } else {
+        nextPending = null
       }
 
       return {
@@ -510,6 +516,7 @@ export const useGameStore = create<GameState>((set) => ({
           playerActiveIdx: pIdx,
           enemyActiveIdx: eIdx,
           lastAction,
+          pendingAttacker: nextPending,
           result,
         },
       }
