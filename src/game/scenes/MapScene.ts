@@ -9,18 +9,21 @@ import {
   MAP_HEIGHT,
   MAP_WIDTH,
 } from '../../data/map'
+import { STARTER_DECOR } from '../../data/starter'
 import type { Portal, Vec2 } from '../types'
 
 const PLAYER_RADIUS = 9
-const FOG_CELL = 20
+const FOG_CELL = 14
 const FOG_COLS = Math.ceil(MAP_WIDTH / FOG_CELL)
 const FOG_ROWS = Math.ceil(MAP_HEIGHT / FOG_CELL)
 const VISION_RADIUS = 220
-const VISION_FADE = 40 // narrow soft edge, still mostly opaque
+const VISION_FADE_INNER = 35
+const VISION_FADE_OUTER = 75
 // Pixel palette (sketchy.jsx pixel mode)
 const FOG_COLOR = 0x2a2540
 const FOG_ALPHA = 1.0
-const FOG_ALPHA_EDGE = 0.78
+const FOG_ALPHA_EDGE_INNER = 0.6
+const FOG_ALPHA_EDGE_OUTER = 0.88
 const BG_HEX = '#d8e3c4'
 const INK_HEX = 0x2a2540
 const PAPER_HEX = 0xfff5dc
@@ -42,8 +45,12 @@ export class MapScene extends Phaser.Scene {
   private hazardGfx!: Phaser.GameObjects.Graphics
   private portalGfx!: Phaser.GameObjects.Graphics
   private revealedCells = new Set<string>()
-  private edgeCells = new Set<string>()
+  private edgeInnerCells = new Set<string>()
+  private edgeOuterCells = new Set<string>()
   private fogDirty = true
+  private trailGfx!: Phaser.GameObjects.Graphics
+  private trail: Vec2[] = []
+  private trailLastTs = 0
   private collectibleSprites = new Map<string, Phaser.GameObjects.Image>()
   private collectibleLabels = new Map<string, Phaser.GameObjects.Text>()
   private plotContainers = new Map<string, Phaser.GameObjects.Container>()
@@ -117,6 +124,20 @@ export class MapScene extends Phaser.Scene {
     this.hazardGfx.setDepth(2)
     this.drawHazards()
 
+    // Decorations scattered across the map (under everything else)
+    for (const d of STARTER_DECOR) {
+      const tex = `decor-${d.sprite}`
+      if (this.textures.exists(tex)) {
+        const sprite = this.add.image(d.pos.x, d.pos.y, tex)
+        sprite.setScale(d.scale ?? 0.16)
+        sprite.setDepth(1)
+      }
+    }
+
+    // Pawn trail (under preview but above everything else map-side)
+    this.trailGfx = this.add.graphics()
+    this.trailGfx.setDepth(7)
+
     this.renderPlots()
 
     this.renderCollectibles()
@@ -159,9 +180,10 @@ export class MapScene extends Phaser.Scene {
     })
   }
 
-  override update(_time: number, delta: number): void {
+  override update(time: number, delta: number): void {
     this.drawCauldronPreview()
     this.renderPlots()
+    this.updateTrail(time)
 
     if (this.fogDirty) this.redrawFog()
 
@@ -280,9 +302,11 @@ export class MapScene extends Phaser.Scene {
     const reach = Math.ceil(VISION_RADIUS / FOG_CELL) + 1
     const cx = Math.floor(pos.x / FOG_CELL)
     const cy = Math.floor(pos.y / FOG_CELL)
-    const outer = VISION_RADIUS + VISION_FADE
-    for (let dy = -reach - 3; dy <= reach + 3; dy++) {
-      for (let dx = -reach - 3; dx <= reach + 3; dx++) {
+    const inner = VISION_RADIUS + VISION_FADE_INNER
+    const outer = inner + VISION_FADE_OUTER
+    const extra = Math.ceil((VISION_FADE_INNER + VISION_FADE_OUTER) / FOG_CELL)
+    for (let dy = -reach - extra; dy <= reach + extra; dy++) {
+      for (let dx = -reach - extra; dx <= reach + extra; dx++) {
         const col = cx + dx
         const row = cy + dy
         if (col < 0 || row < 0 || col >= FOG_COLS || row >= FOG_ROWS) continue
@@ -293,12 +317,23 @@ export class MapScene extends Phaser.Scene {
         if (d <= VISION_RADIUS) {
           if (!this.revealedCells.has(key)) {
             this.revealedCells.add(key)
-            this.edgeCells.delete(key)
+            this.edgeInnerCells.delete(key)
+            this.edgeOuterCells.delete(key)
+            this.fogDirty = true
+          }
+        } else if (d <= inner) {
+          if (!this.revealedCells.has(key) && !this.edgeInnerCells.has(key)) {
+            this.edgeInnerCells.add(key)
+            this.edgeOuterCells.delete(key)
             this.fogDirty = true
           }
         } else if (d <= outer) {
-          if (!this.revealedCells.has(key) && !this.edgeCells.has(key)) {
-            this.edgeCells.add(key)
+          if (
+            !this.revealedCells.has(key) &&
+            !this.edgeInnerCells.has(key) &&
+            !this.edgeOuterCells.has(key)
+          ) {
+            this.edgeOuterCells.add(key)
             this.fogDirty = true
           }
         }
@@ -312,7 +347,9 @@ export class MapScene extends Phaser.Scene {
       for (let col = 0; col < FOG_COLS; col++) {
         const key = `${col},${row}`
         if (this.revealedCells.has(key)) continue
-        const alpha = this.edgeCells.has(key) ? FOG_ALPHA_EDGE : FOG_ALPHA
+        let alpha = FOG_ALPHA
+        if (this.edgeInnerCells.has(key)) alpha = FOG_ALPHA_EDGE_INNER
+        else if (this.edgeOuterCells.has(key)) alpha = FOG_ALPHA_EDGE_OUTER
         this.fogGfx.fillStyle(FOG_COLOR, alpha)
         this.fogGfx.fillRect(
           col * FOG_CELL,
@@ -566,7 +603,11 @@ export class MapScene extends Phaser.Scene {
       const seed = getSeed(plot.seedId)
       if (!seed) return
       const ripe = performance.now() - plot.plantedAtMs >= seed.growthMs
-      if (ripe) state.harvestPlot(plotId)
+      if (ripe) {
+        const ing = getIngredient(seed.ingredientId)
+        this.spawnSparkles(plot.pos.x, plot.pos.y, ing?.color ?? 0xffeb3b)
+        state.harvestPlot(plotId)
+      }
       return
     }
     // Empty plot — plant first available seed
@@ -574,6 +615,55 @@ export class MapScene extends Phaser.Scene {
       (id) => (state.seeds[id] ?? 0) > 0,
     )
     if (firstSeedId) state.plantSeed(plotId, firstSeedId)
+  }
+
+  private spawnSparkles(x: number, y: number, color: number): void {
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2 + Math.random() * 0.3
+      const dist = 40 + Math.random() * 30
+      const sp = this.add.circle(x, y, 4, color)
+      sp.setStrokeStyle(2, 0x2a2540)
+      sp.setDepth(15)
+      this.tweens.add({
+        targets: sp,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        alpha: 0,
+        scale: 0.2,
+        duration: 600 + Math.random() * 200,
+        ease: 'Cubic.easeOut',
+        onComplete: () => sp.destroy(),
+      })
+    }
+  }
+
+  private updateTrail(time: number): void {
+    if (this.movement) {
+      if (time - this.trailLastTs > 28) {
+        this.trailLastTs = time
+        this.trail.push({ x: this.playerPawn.x, y: this.playerPawn.y })
+        if (this.trail.length > 30) this.trail.shift()
+      }
+    } else if (this.trail.length > 0) {
+      // Fade out tail after movement ends
+      if (time - this.trailLastTs > 30) {
+        this.trailLastTs = time
+        this.trail.shift()
+      }
+    }
+    this.trailGfx.clear()
+    const n = this.trail.length
+    if (n < 2) return
+    for (let i = 1; i < n; i++) {
+      const a = this.trail[i - 1]
+      const b = this.trail[i]
+      const alpha = (i / n) * 0.55
+      this.trailGfx.lineStyle(4, 0x2a2540, alpha)
+      this.trailGfx.beginPath()
+      this.trailGfx.moveTo(a.x, a.y)
+      this.trailGfx.lineTo(b.x, b.y)
+      this.trailGfx.strokePath()
+    }
   }
 
   private checkPortalAt(pos: Vec2): void {

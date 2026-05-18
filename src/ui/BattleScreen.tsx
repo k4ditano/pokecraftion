@@ -61,7 +61,7 @@ export function BattleScreen() {
         <BattleColumn
           label="TU EQUIPO"
           side="player"
-          trainerEmoji="🧒"
+          trainerSprite="/assets/trainer-0.png"
           party={battle.playerParty}
           activeIdx={battle.playerActiveIdx}
           lastAction={battle.lastAction}
@@ -69,7 +69,7 @@ export function BattleScreen() {
         <BattleColumn
           label="RIVAL"
           side="enemy"
-          trainerEmoji="🧔"
+          trainerSprite={trainerSpriteFor(battle.trainerName)}
           party={battle.enemyParty}
           activeIdx={battle.enemyActiveIdx}
           lastAction={battle.lastAction}
@@ -92,17 +92,28 @@ export function BattleScreen() {
   )
 }
 
+const TRAINER_SPRITES: Record<string, string> = {
+  'Joven Brian': '/assets/trainer-1.png',
+  Carla: '/assets/trainer-2.png',
+  'Daniel el Cazador': '/assets/trainer-3.png',
+  'Líder Brock': '/assets/trainer-4.png',
+}
+
+function trainerSpriteFor(name: string): string {
+  return TRAINER_SPRITES[name] ?? '/assets/trainer-1.png'
+}
+
 function BattleColumn({
   label,
   side,
-  trainerEmoji,
+  trainerSprite,
   party,
   activeIdx,
   lastAction,
 }: {
   label: string
   side: 'player' | 'enemy'
-  trainerEmoji: string
+  trainerSprite: string
   party: BattlePokemon[]
   activeIdx: number
   lastAction: {
@@ -114,7 +125,9 @@ function BattleColumn({
 }) {
   return (
     <div className={`battle-col ${side}`}>
-      <div className="trainer-header">{trainerEmoji}</div>
+      <div className="trainer-header">
+        <img src={trainerSprite} alt="" className="trainer-sprite-img" />
+      </div>
       <div className="team-label">{label}</div>
       {party.map((p, i) => {
         const isActive = i === activeIdx

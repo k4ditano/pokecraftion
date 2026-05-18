@@ -90,6 +90,35 @@ export const STARTER_PLOTS: Plot[] = [
   { id: 'plot-4', pos: { x: 380, y: 420 } },
 ]
 
+export interface DecorDef {
+  pos: Vec2
+  sprite: number
+  scale?: number
+}
+
+// Scattered decorations to break visual repetition. Positions avoid
+// pozo, plots, portals, hazards and collectibles roughly.
+export const STARTER_DECOR: DecorDef[] = [
+  { pos: { x: 220, y: 260 }, sprite: 0 },   // grass tuft
+  { pos: { x: 280, y: 970 }, sprite: 2 },   // rocks pile
+  { pos: { x: 1700, y: 160 }, sprite: 4 },  // orange flower
+  { pos: { x: 1820, y: 940 }, sprite: 6 },  // red mushroom
+  { pos: { x: 1500, y: 980 }, sprite: 1 },  // pebble
+  { pos: { x: 120, y: 460 }, sprite: 13 },  // fence
+  { pos: { x: 1820, y: 480 }, sprite: 9 },  // log
+  { pos: { x: 1420, y: 870 }, sprite: 10 }, // leaves pile
+  { pos: { x: 200, y: 700 }, sprite: 5 },   // purple flower
+  { pos: { x: 1180, y: 200 }, sprite: 12 }, // bramble berries
+  { pos: { x: 880, y: 980 }, sprite: 7 },   // brown mushroom
+  { pos: { x: 100, y: 900 }, sprite: 14 },  // acorns
+  { pos: { x: 1750, y: 660 }, sprite: 3 },  // stump
+  { pos: { x: 460, y: 980 }, sprite: 15 },  // fog wisp
+  { pos: { x: 1740, y: 380 }, sprite: 0 },  // grass tuft
+  { pos: { x: 180, y: 160 }, sprite: 5 },   // purple flower
+  { pos: { x: 1340, y: 1000 }, sprite: 11 },// puddle
+  { pos: { x: 660, y: 200 }, sprite: 14 },  // acorns
+]
+
 export const STARTER_PORTALS: Portal[] = [
   {
     id: 'portal-1',

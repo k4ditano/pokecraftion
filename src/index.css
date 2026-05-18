@@ -1370,6 +1370,17 @@ body {
   font-size: 14px;
   color: var(--sk-ink);
   padding-bottom: 4px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trainer-sprite-img {
+  width: 88px;
+  height: 88px;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.5));
 }
 
 .team-label {
