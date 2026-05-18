@@ -367,16 +367,9 @@ function ToolDock() {
       return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     }
 
-    const applyEnter = () => {
-      const s = stateRef.current
-      if (!s.cauldron) return
-      if (dragging.kind === 'fire' && !s.isPouring) s.pourCauldron()
-    }
-
-    const applyLeave = () => {
-      const s = stateRef.current
-      if (dragging.kind === 'fire' && s.isPouring) s.stopPour()
-    }
+    // Fire latches ON the first time it enters the cauldron; only
+    // releasing the pokémon stops it. Rock requires continuous overlap.
+    let fireLatched = false
 
     const tick = (ts: number) => {
       const last = lastTs
@@ -398,16 +391,22 @@ function ToolDock() {
     const onMove = (e: PointerEvent) => {
       setPointerPos({ x: e.clientX, y: e.clientY })
       const isOver = checkOver(e.clientX, e.clientY)
-      const wasOver = overTargetRef.current
-      if (isOver !== wasOver) {
-        overTargetRef.current = isOver
-        if (isOver) applyEnter()
-        else applyLeave()
+      overTargetRef.current = isOver
+      if (dragging.kind === 'fire' && isOver && !fireLatched) {
+        const s = stateRef.current
+        if (s.cauldron && !s.isPouring) {
+          s.pourCauldron()
+          fireLatched = true
+        }
       }
     }
 
     const onUp = () => {
-      if (overTargetRef.current) applyLeave()
+      const s = stateRef.current
+      if (dragging.kind === 'fire' && fireLatched && s.isPouring) {
+        s.stopPour()
+      }
+      fireLatched = false
       overTargetRef.current = false
       setDragging(null)
     }
@@ -422,7 +421,8 @@ function ToolDock() {
       document.removeEventListener('pointerup', onUp)
       document.removeEventListener('pointercancel', onUp)
       if (rafId !== null) cancelAnimationFrame(rafId)
-      if (overTargetRef.current) applyLeave()
+      const s = stateRef.current
+      if (fireLatched && s.isPouring) s.stopPour()
       overTargetRef.current = false
     }
   }, [dragging])
