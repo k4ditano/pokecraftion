@@ -699,7 +699,29 @@ export class MapScene extends Phaser.Scene {
         useGameStore.getState().damageFromHazard()
         this.cameras.main.shake(160, 0.008)
         this.cameras.main.flash(120, 255, 60, 60)
+        this.spawnBoneFragments(h.pos.x, h.pos.y)
       }
+    }
+  }
+
+  private spawnBoneFragments(x: number, y: number): void {
+    for (let i = 0; i < 7; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const dist = 22 + Math.random() * 30
+      const sp = this.add.rectangle(x, y, 8, 5, 0xf6e8c3)
+      sp.setStrokeStyle(2, 0x2a2540)
+      sp.setDepth(15)
+      sp.setRotation(Math.random() * Math.PI)
+      this.tweens.add({
+        targets: sp,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        alpha: 0,
+        rotation: sp.rotation + (Math.random() - 0.5) * Math.PI * 2,
+        duration: 480 + Math.random() * 200,
+        ease: 'Cubic.easeOut',
+        onComplete: () => sp.destroy(),
+      })
     }
   }
 }

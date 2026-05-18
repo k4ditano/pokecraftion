@@ -579,6 +579,32 @@ body {
   50% { transform: translateX(-50%) scaleY(1.08); }
 }
 
+/* Bubbles floating up from cauldron while pouring */
+.cauldron-bubble {
+  position: absolute;
+  top: 30px;
+  border: 1px solid var(--sk-ink);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+  animation: cauldron-bubble-rise 0.9s ease-out forwards;
+  box-shadow: inset -1px -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+@keyframes cauldron-bubble-rise {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, -28px) scale(1.1);
+    opacity: 0;
+  }
+}
+
 /* Dust particles flying up while mortar grinds */
 .cauldron-particle {
   position: absolute;
@@ -974,8 +1000,17 @@ body {
 }
 
 .node-icon {
-  font-size: 26px;
-  line-height: 1;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-icon img {
+  width: 60px;
+  height: 60px;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.4));
 }
 
 .node-label {

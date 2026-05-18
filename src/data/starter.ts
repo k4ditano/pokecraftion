@@ -65,6 +65,69 @@ function blobHazards(
   return out
 }
 
+function spiralHazards(
+  center: Vec2,
+  startR: number,
+  endR: number,
+  turns: number,
+  count: number,
+  hazardR = 12,
+): Hazard[] {
+  const out: Hazard[] = []
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1)
+    const a = t * Math.PI * 2 * turns
+    const r = startR + (endR - startR) * t
+    out.push(
+      makeHazard(
+        { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r },
+        hazardR,
+        a,
+      ),
+    )
+  }
+  return out
+}
+
+function corridorHazards(
+  from: Vec2,
+  to: Vec2,
+  count: number,
+  width: number,
+  hazardR = 12,
+): Hazard[] {
+  // Two parallel bone lines with given perpendicular width
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const len = Math.hypot(dx, dy)
+  if (len === 0) return []
+  const nx = -dy / len
+  const ny = dx / len
+  const a = Math.atan2(dy, dx)
+  const out: Hazard[] = []
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : i / (count - 1)
+    const cx = from.x + dx * t
+    const cy = from.y + dy * t
+    const jit = (Math.random() - 0.5) * 6
+    out.push(
+      makeHazard(
+        { x: cx + nx * (width / 2) + jit, y: cy + ny * (width / 2) + jit },
+        hazardR,
+        a + Math.PI / 2,
+      ),
+    )
+    out.push(
+      makeHazard(
+        { x: cx - nx * (width / 2) + jit, y: cy - ny * (width / 2) + jit },
+        hazardR,
+        a + Math.PI / 2,
+      ),
+    )
+  }
+  return out
+}
+
 
 export const STARTER_INVENTORY: InventoryItem[] = [
   { id: 'straight', name: 'Menta Verde', qty: 3 },
@@ -132,31 +195,34 @@ export const STARTER_PORTALS: Portal[] = [
 const BONE_R = 7
 
 export const STARTER_HAZARDS: Hazard[] = [
-  // Four dense corner blobs — solid bone walls in each quadrant
-  ...blobHazards({ x: 380, y: 220 }, 130, 55, BONE_R),
-  ...blobHazards({ x: 1540, y: 220 }, 130, 55, BONE_R),
-  ...blobHazards({ x: 380, y: 860 }, 120, 50, BONE_R),
-  ...blobHazards({ x: 1540, y: 860 }, 120, 50, BONE_R),
+  // Two dense corner blobs (NW + SE) — long-distance gravity wells
+  ...blobHazards({ x: 340, y: 220 }, 130, 50, BONE_R),
+  ...blobHazards({ x: 1580, y: 880 }, 130, 50, BONE_R),
 
-  // Vertical pillar between pozo and Bulbasaur — forces curve
-  ...blobHazards({ x: 830, y: 540 }, 50, 22, BONE_R),
-  // Vertical pillar between pozo and Charmander
-  ...blobHazards({ x: 1090, y: 540 }, 50, 22, BONE_R),
+  // Spiral cluster top-right — forces curve to enter Charmander side
+  ...spiralHazards({ x: 1480, y: 280 }, 40, 130, 1.5, 22, BONE_R),
 
-  // Top-center blob blocks direct north access
-  ...blobHazards({ x: 960, y: 420 }, 55, 24, BONE_R),
-  // Bottom-center blob blocks direct south access
-  ...blobHazards({ x: 960, y: 660 }, 55, 24, BONE_R),
+  // Spiral cluster bottom-left — same opposite
+  ...spiralHazards({ x: 380, y: 800 }, 40, 130, 1.5, 22, BONE_R),
 
-  // Diagonal trails connecting corner blobs (curve through them)
-  ...lineHazards({ x: 540, y: 360 }, { x: 700, y: 320 }, 10, 6, BONE_R),
-  ...lineHazards({ x: 1420, y: 360 }, { x: 1260, y: 320 }, 10, 6, BONE_R),
-  ...lineHazards({ x: 540, y: 720 }, { x: 700, y: 760 }, 10, 6, BONE_R),
-  ...lineHazards({ x: 1420, y: 720 }, { x: 1260, y: 760 }, 10, 6, BONE_R),
+  // Horizontal corridor blocking east-west traffic at mid-north
+  ...corridorHazards({ x: 700, y: 320 }, { x: 1220, y: 320 }, 8, 36, BONE_R),
+  // Horizontal corridor blocking east-west traffic at mid-south
+  ...corridorHazards({ x: 700, y: 760 }, { x: 1220, y: 760 }, 8, 36, BONE_R),
 
-  // Two corridor blocks near Pidgey/Rattata
-  ...blobHazards({ x: 820, y: 260 }, 40, 14, BONE_R),
-  ...blobHazards({ x: 1100, y: 820 }, 40, 14, BONE_R),
+  // Vertical line east of pozo
+  ...lineHazards({ x: 1140, y: 420 }, { x: 1140, y: 660 }, 8, 8, BONE_R),
+  // Vertical line west of pozo
+  ...lineHazards({ x: 780, y: 420 }, { x: 780, y: 660 }, 8, 8, BONE_R),
+
+  // Small mid-blobs centred between pozo and corners
+  ...blobHazards({ x: 1280, y: 580 }, 36, 12, BONE_R),
+  ...blobHazards({ x: 640, y: 580 }, 36, 12, BONE_R),
+
+  // Sparse scatter at top edge
+  ...blobHazards({ x: 960, y: 130 }, 220, 10, BONE_R),
+  // Sparse scatter at bottom edge
+  ...blobHazards({ x: 960, y: 970 }, 220, 10, BONE_R),
 ]
 
 export const STARTER_COLLECTIBLES: Collectible[] = [

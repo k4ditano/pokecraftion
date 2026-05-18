@@ -5,11 +5,11 @@ import type { NodeType, RunNode } from '../game/types'
 import { MetaShop } from './MetaShop'
 
 const NODE_ICON: Record<NodeType, string> = {
-  trainer: '🗡️',
-  elite: '⚔️',
-  boss: '👑',
-  merchant: '🏪',
-  event: '❓',
+  trainer: '/assets/trainer-1.png',
+  elite: '/assets/trainer-3.png',
+  boss: '/assets/trainer-4.png',
+  merchant: '/assets/mapcell-8.png',
+  event: '/assets/cauldron-cell-3.png',
 }
 
 export function PathScreen() {
@@ -76,7 +76,9 @@ export function PathScreen() {
                 key={node.id}
                 className={`node ${status} type-${node.type}`}
               >
-                <div className="node-icon">{NODE_ICON[node.type]}</div>
+                <div className="node-icon">
+                  <img src={NODE_ICON[node.type]} alt={node.type} />
+                </div>
                 <div className="node-label">{node.label}</div>
                 {status === 'current' && (
                   <button

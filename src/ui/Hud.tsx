@@ -271,7 +271,12 @@ function CauldronView() {
           </div>
         )}
         {!isPouring && grind >= 0.99 && <div className="cauldron-pile" />}
-        {isPouring && <div className="cauldron-liquid" />}
+        {isPouring && (
+          <>
+            <div className="cauldron-liquid" />
+            <PourBubbles color={colorHex} />
+          </>
+        )}
         {particles.map((p) => (
           <span
             key={p.id}
@@ -304,6 +309,39 @@ function CauldronView() {
         </button>
       </div>
     </div>
+  )
+}
+
+function PourBubbles({ color }: { color: string }) {
+  const [bubbles, setBubbles] = useState<{ id: number; x: number; size: number }[]>([])
+  const idRef = useRef(0)
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const id = ++idRef.current
+      const x = 28 + Math.random() * 56
+      const size = 4 + Math.floor(Math.random() * 5)
+      setBubbles((b) => [...b, { id, x, size }])
+      window.setTimeout(() => {
+        setBubbles((b) => b.filter((bb) => bb.id !== id))
+      }, 900)
+    }, 220)
+    return () => clearInterval(interval)
+  }, [])
+  return (
+    <>
+      {bubbles.map((b) => (
+        <span
+          key={b.id}
+          className="cauldron-bubble"
+          style={{
+            left: b.x,
+            width: b.size,
+            height: b.size,
+            background: color,
+          }}
+        />
+      ))}
+    </>
   )
 }
 
