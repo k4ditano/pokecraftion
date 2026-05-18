@@ -8,7 +8,8 @@ import type {
   RunNode,
   Vec2,
 } from '../game/types'
-import { getMtDef, STARTER_MTS } from '../data/mts'
+import { getMtDef, MT_DEFS, STARTER_MTS } from '../data/mts'
+import { useMetaStore, UPGRADES } from './metaStore'
 import { getIngredient } from '../data/ingredients'
 import { slicePathByFraction, transformPath } from '../game/pathUtils'
 import {
@@ -171,27 +172,67 @@ type InitialStateFields = Pick<
 >
 
 function buildInitialState(): InitialStateFields {
+  const meta = useMetaStore.getState()
+  let inventory = STARTER_INVENTORY.map((i) => ({ ...i }))
+  let water = WATER_INITIAL
+  let gold = STARTER_GOLD
+  const mts = STARTER_MTS.map((m) => ({ ...m }))
+
+  for (const [upId, level] of Object.entries(meta.unlocks)) {
+    const def = UPGRADES[upId]
+    if (!def || level <= 0) continue
+    if (def.apply === 'ingredient' && def.payload.id && def.payload.amount) {
+      const target = inventory.find((i) => i.id === def.payload.id)
+      if (target) {
+        target.qty += def.payload.amount * level
+      }
+    } else if (def.apply === 'water' && def.payload.amount) {
+      water += def.payload.amount * level
+    } else if (def.apply === 'gold' && def.payload.amount) {
+      gold += def.payload.amount * level
+    } else if (def.apply === 'mt' && def.payload.mtId) {
+      const mtDef = MT_DEFS[def.payload.mtId]
+      if (mtDef) {
+        const existing = mts.find((m) => m.id === def.payload.mtId)
+        if (existing) existing.qty += level
+        else mts.push({ ...mtDef, qty: level })
+      }
+    }
+  }
+
   return {
     phase: 'map',
     party: [],
-    inventory: STARTER_INVENTORY.map((i) => ({ ...i })),
+    inventory,
     collectibles: STARTER_COLLECTIBLES.map((c) => ({ ...c })),
     portals: STARTER_PORTALS.map((p) => ({ ...p })),
     hazards: STARTER_HAZARDS.map((h) => ({ ...h })),
     playerPos: { ...STARTER_PLAYER_POS },
-    water: WATER_INITIAL,
+    water,
     cauldron: null,
     aimAngle: 0,
     pendingMovement: null,
-    gold: STARTER_GOLD,
+    gold,
     pathNodes: JSON.parse(JSON.stringify(STARTER_PATH)) as RunNode[],
     currentNodeIdx: 0,
     isPathOpen: false,
     runComplete: false,
-    mts: STARTER_MTS.map((m) => ({ ...m })),
+    mts,
     teamPanelIdx: null,
     battle: null,
   }
+}
+
+function computeEssencesEarned(
+  party: number,
+  gold: number,
+  collectiblesLeft: number,
+): number {
+  let n = 10
+  n += party * 2
+  n += Math.floor(gold / 10)
+  if (collectiblesLeft <= 0) n += 3
+  return n
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -586,12 +627,21 @@ export const useGameStore = create<GameState>((set) => ({
             node.reward.ingredients,
           )
           const nextIdx = state.currentNodeIdx + 1
+          const nowComplete = nextIdx >= state.pathNodes.length
+          if (nowComplete) {
+            const earned = computeEssencesEarned(
+              partyWithHp.length,
+              state.gold + node.reward.gold,
+              state.collectibles.length,
+            )
+            useMetaStore.getState().addEssences(earned)
+          }
           return {
             party: partyWithHp,
             inventory,
             gold: state.gold + node.reward.gold,
             currentNodeIdx: nextIdx,
-            runComplete: nextIdx >= state.pathNodes.length,
+            runComplete: nowComplete,
             battle: null,
           }
         }

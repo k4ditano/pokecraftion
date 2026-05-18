@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useGameStore } from '../state/gameStore'
+import { useMetaStore } from '../state/metaStore'
 import type { NodeType, RunNode } from '../game/types'
+import { MetaShop } from './MetaShop'
 
 const NODE_ICON: Record<NodeType, string> = {
   trainer: '🗡️',
@@ -18,6 +20,8 @@ export function PathScreen() {
   const closePath = useGameStore((s) => s.closePath)
 
   const [engagedIdx, setEngagedIdx] = useState<number | null>(null)
+  const [shopOpen, setShopOpen] = useState(false)
+  const essences = useMetaStore((s) => s.essences)
 
   if (!isPathOpen) return null
 
@@ -37,16 +41,27 @@ export function PathScreen() {
         {runComplete && (
           <div className="run-complete">
             <div>🏆 Run completada. Has derrotado al jefe.</div>
-            <button
-              className="btn pour"
-              onClick={() => {
-                useGameStore.getState().restartRun()
-              }}
-            >
-              Empezar nueva run
-            </button>
+            <div className="essences-line">✨ Esencias totales: {essences}</div>
+            <div className="run-complete-actions">
+              <button
+                className="btn engage"
+                onClick={() => setShopOpen(true)}
+              >
+                Tienda meta
+              </button>
+              <button
+                className="btn pour"
+                onClick={() => {
+                  useGameStore.getState().restartRun()
+                }}
+              >
+                Empezar nueva run
+              </button>
+            </div>
           </div>
         )}
+
+        {shopOpen && <MetaShop onClose={() => setShopOpen(false)} />}
 
         <div className="nodes">
           {pathNodes.map((node, i) => {
