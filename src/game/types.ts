@@ -31,3 +31,60 @@ export interface Hazard {
   pos: Vec2
   radius: number
 }
+
+export type NodeType = 'trainer' | 'merchant' | 'event' | 'elite' | 'boss'
+export type NodeStatus = 'pending' | 'current' | 'done'
+
+export interface TrainerPokemon {
+  defId: number
+  name: string
+  level: number
+}
+
+export interface TrainerReward {
+  gold: number
+  ingredients: { id: string; qty: number }[]
+}
+
+interface NodeBase {
+  id: string
+  label: string
+}
+
+export interface NodeTrainer extends NodeBase {
+  type: 'trainer' | 'elite' | 'boss'
+  trainerName: string
+  pokemons: TrainerPokemon[]
+  reward: TrainerReward
+}
+
+export interface MerchantOffer {
+  id: string
+  name: string
+  qty: number
+  price: number
+}
+
+export interface NodeMerchant extends NodeBase {
+  type: 'merchant'
+  offers: MerchantOffer[]
+}
+
+export type EventEffect =
+  | { kind: 'gainIngredient'; id: string; name: string; qty: number }
+  | { kind: 'gainGold'; amount: number }
+  | { kind: 'loseWater'; amount: number }
+  | { kind: 'gainWater'; amount: number }
+
+export interface EventOption {
+  label: string
+  effect: EventEffect
+}
+
+export interface NodeEvent extends NodeBase {
+  type: 'event'
+  description: string
+  options: EventOption[]
+}
+
+export type RunNode = NodeTrainer | NodeMerchant | NodeEvent

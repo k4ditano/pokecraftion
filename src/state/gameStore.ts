@@ -1,5 +1,12 @@
 import { create } from 'zustand'
-import type { Collectible, Hazard, Portal, Vec2 } from '../game/types'
+import type {
+  Collectible,
+  EventEffect,
+  Hazard,
+  Portal,
+  RunNode,
+  Vec2,
+} from '../game/types'
 import { getIngredient } from '../data/ingredients'
 import { slicePathByFraction, transformPath } from '../game/pathUtils'
 import {
@@ -16,6 +23,7 @@ import {
   STARTER_PLAYER_POS,
   STARTER_PORTALS,
 } from '../data/starter'
+import { STARTER_GOLD, STARTER_PATH } from '../data/runPath'
 
 export type GamePhase = 'menu' | 'map' | 'path' | 'battle'
 
@@ -58,6 +66,12 @@ interface GameState {
   aimAngle: number
   pendingMovement: PendingMovement | null
 
+  gold: number
+  pathNodes: RunNode[]
+  currentNodeIdx: number
+  isPathOpen: boolean
+  runComplete: boolean
+
   setPhase: (phase: GamePhase) => void
   addToParty: (member: PartyMember) => void
   addItem: (item: InventoryItem) => void
@@ -73,6 +87,13 @@ interface GameState {
   pourWater: () => void
   consumePendingMovement: () => void
   damageFromHazard: () => void
+
+  openPath: () => void
+  closePath: () => void
+  resolveTrainerNode: (nodeId: string) => void
+  buyMerchantOffer: (nodeId: string, offerIdx: number) => void
+  finishMerchant: (nodeId: string) => void
+  applyEventOption: (nodeId: string, optionIdx: number) => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -88,6 +109,12 @@ export const useGameStore = create<GameState>((set) => ({
   cauldron: null,
   aimAngle: 0,
   pendingMovement: null,
+
+  gold: STARTER_GOLD,
+  pathNodes: STARTER_PATH.map((n) => ({ ...n })),
+  currentNodeIdx: 0,
+  isPathOpen: false,
+  runComplete: false,
 
   setPhase: (phase) => set({ phase }),
   addToParty: (member) =>
@@ -218,4 +245,117 @@ export const useGameStore = create<GameState>((set) => ({
 
   damageFromHazard: () =>
     set((state) => ({ water: Math.max(0, state.water - 1) })),
+
+  openPath: () =>
+    set((state) => {
+      if (state.pendingMovement || state.cauldron) return {}
+      return { isPathOpen: true }
+    }),
+
+  closePath: () => set({ isPathOpen: false }),
+
+  resolveTrainerNode: (nodeId) =>
+    set((state) => {
+      const node = state.pathNodes[state.currentNodeIdx]
+      if (!node || node.id !== nodeId) return {}
+      if (node.type !== 'trainer' && node.type !== 'elite' && node.type !== 'boss') {
+        return {}
+      }
+      const nextInv = applyIngredientGains(state.inventory, node.reward.ingredients)
+      const nextIdx = state.currentNodeIdx + 1
+      const complete = nextIdx >= state.pathNodes.length
+      return {
+        inventory: nextInv,
+        gold: state.gold + node.reward.gold,
+        currentNodeIdx: nextIdx,
+        runComplete: complete,
+      }
+    }),
+
+  buyMerchantOffer: (nodeId, offerIdx) =>
+    set((state) => {
+      const node = state.pathNodes[state.currentNodeIdx]
+      if (!node || node.id !== nodeId || node.type !== 'merchant') return {}
+      const offer = node.offers[offerIdx]
+      if (!offer) return {}
+      if (state.gold < offer.price) return {}
+      const updatedOffers = node.offers.filter((_, i) => i !== offerIdx)
+      const newNodes = state.pathNodes.map((n, i) =>
+        i === state.currentNodeIdx && n.type === 'merchant'
+          ? { ...n, offers: updatedOffers }
+          : n,
+      )
+      return {
+        gold: state.gold - offer.price,
+        inventory: applyIngredientGains(state.inventory, [
+          { id: offer.id, qty: offer.qty },
+        ]),
+        pathNodes: newNodes,
+      }
+    }),
+
+  finishMerchant: (nodeId) =>
+    set((state) => {
+      const node = state.pathNodes[state.currentNodeIdx]
+      if (!node || node.id !== nodeId || node.type !== 'merchant') return {}
+      const nextIdx = state.currentNodeIdx + 1
+      return {
+        currentNodeIdx: nextIdx,
+        runComplete: nextIdx >= state.pathNodes.length,
+      }
+    }),
+
+  applyEventOption: (nodeId, optionIdx) =>
+    set((state) => {
+      const node = state.pathNodes[state.currentNodeIdx]
+      if (!node || node.id !== nodeId || node.type !== 'event') return {}
+      const option = node.options[optionIdx]
+      if (!option) return {}
+      const patch = applyEffect(state, option.effect)
+      const nextIdx = state.currentNodeIdx + 1
+      return {
+        ...patch,
+        currentNodeIdx: nextIdx,
+        runComplete: nextIdx >= state.pathNodes.length,
+      }
+    }),
 }))
+
+function applyIngredientGains(
+  inventory: InventoryItem[],
+  gains: { id: string; qty: number }[],
+): InventoryItem[] {
+  let next = inventory
+  for (const g of gains) {
+    const existing = next.find((i) => i.id === g.id)
+    if (existing) {
+      next = next.map((i) =>
+        i.id === g.id ? { ...i, qty: i.qty + g.qty } : i,
+      )
+    } else {
+      const def = getIngredient(g.id)
+      next = [...next, { id: g.id, name: def?.name ?? g.id, qty: g.qty }]
+    }
+  }
+  return next
+}
+
+function applyEffect(
+  state: GameState,
+  effect: EventEffect,
+): Partial<GameState> {
+  switch (effect.kind) {
+    case 'gainIngredient':
+      return {
+        inventory: applyIngredientGains(state.inventory, [
+          { id: effect.id, qty: effect.qty },
+        ]),
+      }
+    case 'gainGold':
+      return { gold: state.gold + effect.amount }
+    case 'loseWater':
+      return { water: Math.max(0, state.water - effect.amount) }
+    case 'gainWater':
+      return { water: state.water + effect.amount }
+  }
+}

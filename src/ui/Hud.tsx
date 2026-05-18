@@ -9,27 +9,36 @@ function hexColor(n: number): string {
 const GRIND_RATE_PER_SEC = 0.7
 
 export function Hud() {
-  const phase = useGameStore((s) => s.phase)
   const party = useGameStore((s) => s.party)
   const inventory = useGameStore((s) => s.inventory)
   const collectibles = useGameStore((s) => s.collectibles)
   const cauldron = useGameStore((s) => s.cauldron)
   const water = useGameStore((s) => s.water)
+  const gold = useGameStore((s) => s.gold)
   const pendingMovement = useGameStore((s) => s.pendingMovement)
+  const pathNodes = useGameStore((s) => s.pathNodes)
+  const currentNodeIdx = useGameStore((s) => s.currentNodeIdx)
+  const runComplete = useGameStore((s) => s.runComplete)
   const addToCauldron = useGameStore((s) => s.addToCauldron)
   const cancelCauldron = useGameStore((s) => s.cancelCauldron)
   const pourCauldron = useGameStore((s) => s.pourCauldron)
   const pourWater = useGameStore((s) => s.pourWater)
+  const openPath = useGameStore((s) => s.openPath)
 
   const busy = !!pendingMovement
   const cauldronDef = cauldron ? INGREDIENTS[cauldron.ingredientId] : null
+  const nextNode = pathNodes[currentNodeIdx]
 
   return (
     <>
       <div className="hud hud-top-left">
         <div className="hud-row">
-          <span className="hud-label">Phase:</span>
-          <span className="hud-value">{phase}</span>
+          <span className="hud-label">Agua:</span>
+          <span className="hud-value">{water}</span>
+        </div>
+        <div className="hud-row">
+          <span className="hud-label">Oro:</span>
+          <span className="hud-value">{gold}⚜</span>
         </div>
         <div className="hud-row">
           <span className="hud-label">Party:</span>
@@ -39,10 +48,28 @@ export function Hud() {
           <span className="hud-label">Mapa:</span>
           <span className="hud-value">{collectibles.length} restantes</span>
         </div>
+      </div>
+
+      <div className="hud hud-top-right interactive">
         <div className="hud-row">
-          <span className="hud-label">Agua:</span>
-          <span className="hud-value">{water}</span>
+          <span className="hud-label">Camino:</span>
+          <span className="hud-value">
+            {Math.min(currentNodeIdx + 1, pathNodes.length)}/{pathNodes.length}
+          </span>
         </div>
+        {nextNode && !runComplete && (
+          <div className="hud-row">
+            <span className="hud-label">Siguiente:</span>
+            <span className="hud-value">{nextNode.label}</span>
+          </div>
+        )}
+        <button
+          className="btn path-btn"
+          disabled={busy || !!cauldron}
+          onClick={() => openPath()}
+        >
+          {runComplete ? 'Ver resumen' : 'Salir al camino'}
+        </button>
       </div>
 
       <div className="hud hud-bottom interactive">

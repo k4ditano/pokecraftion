@@ -1,4 +1,5 @@
 import { Hud } from './ui/Hud'
+import { PathScreen } from './ui/PathScreen'
 import { PhaserCanvas } from './ui/PhaserCanvas'
 
 export default function App() {
@@ -6,6 +7,7 @@ export default function App() {
     <div className="app">
       <PhaserCanvas />
       <Hud />
+      <PathScreen />
     </div>
   )
 }
