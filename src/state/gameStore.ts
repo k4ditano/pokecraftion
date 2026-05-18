@@ -24,6 +24,15 @@ import {
   STARTER_PORTALS,
 } from '../data/starter'
 import { STARTER_GOLD, STARTER_PATH } from '../data/runPath'
+import {
+  aiPickMove,
+  buildBattlePokemon,
+  buildEnemyParty,
+  computeDamage,
+  effectivenessLabel,
+  type BattlePokemon,
+} from '../battle/battle'
+import { getMove } from '../data/moves'
 
 export type GamePhase = 'menu' | 'map' | 'path' | 'battle'
 
@@ -52,6 +61,16 @@ export interface PendingMovement {
   kind: 'ingredient' | 'water'
 }
 
+export interface BattleState {
+  nodeId: string
+  playerParty: BattlePokemon[]
+  enemyParty: BattlePokemon[]
+  playerActiveIdx: number
+  enemyActiveIdx: number
+  messages: string[]
+  result: 'win' | 'loss' | null
+}
+
 interface GameState {
   phase: GamePhase
   party: PartyMember[]
@@ -71,6 +90,8 @@ interface GameState {
   currentNodeIdx: number
   isPathOpen: boolean
   runComplete: boolean
+
+  battle: BattleState | null
 
   setPhase: (phase: GamePhase) => void
   addToParty: (member: PartyMember) => void
@@ -94,6 +115,11 @@ interface GameState {
   buyMerchantOffer: (nodeId: string, offerIdx: number) => void
   finishMerchant: (nodeId: string) => void
   applyEventOption: (nodeId: string, optionIdx: number) => void
+
+  startBattle: (nodeId: string) => void
+  chooseBattleMove: (moveIdx: number) => void
+  nextBattleMessage: () => void
+  endBattle: () => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -115,6 +141,8 @@ export const useGameStore = create<GameState>((set) => ({
   currentNodeIdx: 0,
   isPathOpen: false,
   runComplete: false,
+
+  battle: null,
 
   setPhase: (phase) => set({ phase }),
   addToParty: (member) =>
@@ -319,7 +347,171 @@ export const useGameStore = create<GameState>((set) => ({
         runComplete: nextIdx >= state.pathNodes.length,
       }
     }),
+
+  startBattle: (nodeId) =>
+    set((state) => {
+      const node = state.pathNodes[state.currentNodeIdx]
+      if (!node || node.id !== nodeId) return {}
+      if (
+        node.type !== 'trainer' &&
+        node.type !== 'elite' &&
+        node.type !== 'boss'
+      ) {
+        return {}
+      }
+      if (state.party.length === 0) return {}
+      const playerParty = state.party.map((m) =>
+        buildBattlePokemon(m.pokemonId, m.name, m.level),
+      )
+      const enemyParty = buildEnemyParty(node.pokemons)
+      return {
+        battle: {
+          nodeId,
+          playerParty,
+          enemyParty,
+          playerActiveIdx: 0,
+          enemyActiveIdx: 0,
+          messages: [
+            `${node.trainerName} te reta a un combate.`,
+            `¡Adelante, ${playerParty[0].name}!`,
+          ],
+          result: null,
+        },
+        isPathOpen: false,
+      }
+    }),
+
+  chooseBattleMove: (moveIdx) =>
+    set((state) => {
+      const battle = state.battle
+      if (!battle || battle.result) return {}
+      if (battle.messages.length > 0) return {}
+
+      const playerParty = battle.playerParty.map((p) => ({ ...p }))
+      const enemyParty = battle.enemyParty.map((p) => ({ ...p }))
+      let pIdx = battle.playerActiveIdx
+      let eIdx = battle.enemyActiveIdx
+      const pActive = playerParty[pIdx]
+      const eActive = enemyParty[eIdx]
+      const messages: string[] = []
+      let result: 'win' | 'loss' | null = null
+
+      const playerMoveId = pActive.moves[moveIdx]
+      const enemyMoveId = aiPickMove(eActive)
+      const order: ('player' | 'enemy')[] =
+        pActive.speed >= eActive.speed ? ['player', 'enemy'] : ['enemy', 'player']
+
+      for (const side of order) {
+        if (result) break
+        const attacker = side === 'player' ? playerParty[pIdx] : enemyParty[eIdx]
+        const defender = side === 'player' ? enemyParty[eIdx] : playerParty[pIdx]
+        const moveId = side === 'player' ? playerMoveId : enemyMoveId
+        const move = getMove(moveId)
+        if (!move) continue
+        messages.push(`${attacker.name} usa ${move.name}.`)
+        const result1 = computeDamage(attacker, defender, moveId)
+        if (!result1.hit) {
+          messages.push('¡Falló!')
+          continue
+        }
+        if (result1.effectiveness === 0) {
+          messages.push('No tiene efecto…')
+          continue
+        }
+        defender.hp = Math.max(0, defender.hp - result1.damage)
+        messages.push(`Inflige ${result1.damage} de daño.`)
+        const effLabel = effectivenessLabel(result1.effectiveness)
+        if (effLabel) messages.push(effLabel + '.')
+
+        if (defender.hp <= 0) {
+          messages.push(`${defender.name} se debilita.`)
+          if (side === 'player') {
+            const next = nextAlive(enemyParty, eIdx)
+            if (next === -1) {
+              result = 'win'
+              messages.push('¡Has ganado el combate!')
+            } else {
+              eIdx = next
+              messages.push(`Rival envía a ${enemyParty[eIdx].name}.`)
+            }
+          } else {
+            const next = nextAlive(playerParty, pIdx)
+            if (next === -1) {
+              result = 'loss'
+              messages.push('Te has quedado sin Pokémon.')
+            } else {
+              pIdx = next
+              messages.push(`Envías a ${playerParty[pIdx].name}.`)
+            }
+          }
+          break
+        }
+      }
+
+      return {
+        battle: {
+          ...battle,
+          playerParty,
+          enemyParty,
+          playerActiveIdx: pIdx,
+          enemyActiveIdx: eIdx,
+          messages,
+          result,
+        },
+      }
+    }),
+
+  nextBattleMessage: () =>
+    set((state) => {
+      if (!state.battle) return {}
+      if (state.battle.messages.length === 0) return {}
+      return {
+        battle: {
+          ...state.battle,
+          messages: state.battle.messages.slice(1),
+        },
+      }
+    }),
+
+  endBattle: () =>
+    set((state) => {
+      const battle = state.battle
+      if (!battle) return {}
+      if (battle.result === 'win') {
+        const node = state.pathNodes.find((n) => n.id === battle.nodeId)
+        if (
+          node &&
+          (node.type === 'trainer' ||
+            node.type === 'elite' ||
+            node.type === 'boss')
+        ) {
+          const inventory = applyIngredientGains(
+            state.inventory,
+            node.reward.ingredients,
+          )
+          const nextIdx = state.currentNodeIdx + 1
+          return {
+            inventory,
+            gold: state.gold + node.reward.gold,
+            currentNodeIdx: nextIdx,
+            runComplete: nextIdx >= state.pathNodes.length,
+            battle: null,
+          }
+        }
+      }
+      return { battle: null }
+    }),
 }))
+
+function nextAlive(party: BattlePokemon[], currentIdx: number): number {
+  for (let i = currentIdx + 1; i < party.length; i++) {
+    if (party[i].hp > 0) return i
+  }
+  for (let i = 0; i < currentIdx; i++) {
+    if (party[i].hp > 0) return i
+  }
+  return -1
+}
 
 function applyIngredientGains(
   inventory: InventoryItem[],

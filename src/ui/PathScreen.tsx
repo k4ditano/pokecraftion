@@ -124,7 +124,9 @@ function TrainerPanel({
   node: Extract<RunNode, { type: 'trainer' | 'elite' | 'boss' }>
   onClose: () => void
 }) {
-  const resolveTrainerNode = useGameStore((s) => s.resolveTrainerNode)
+  const startBattle = useGameStore((s) => s.startBattle)
+  const party = useGameStore((s) => s.party)
+  const canFight = party.length > 0
   return (
     <div className="node-panel">
       <div className="panel-title">{node.trainerName}</div>
@@ -147,15 +149,21 @@ function TrainerPanel({
             .join(', ')}
         </div>
       </div>
+      {!canFight && (
+        <div className="panel-section warning">
+          Necesitas al menos un Pokémon en el equipo. Vuelve al mapa a capturar.
+        </div>
+      )}
       <div className="panel-actions">
         <button
           className="btn pour"
+          disabled={!canFight}
           onClick={() => {
-            resolveTrainerNode(node.id)
+            startBattle(node.id)
             onClose()
           }}
         >
-          Combatir (stub: victoria automática)
+          Combatir
         </button>
         <button className="btn cancel" onClick={onClose}>
           Cerrar
