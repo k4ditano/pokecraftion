@@ -605,8 +605,8 @@ body {
 
 .tool-btn {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 104px;
+  height: 104px;
   background: transparent;
   border: 0;
   padding: 0;
@@ -620,8 +620,8 @@ body {
 }
 
 .tool-btn img {
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   image-rendering: pixelated;
   pointer-events: none;
   filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.45));
