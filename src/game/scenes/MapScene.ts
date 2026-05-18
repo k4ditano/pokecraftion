@@ -10,14 +10,16 @@ import {
 } from '../../data/map'
 import type { Hazard, Portal, Vec2 } from '../types'
 
-const PLAYER_RADIUS = 14
-const FOG_CELL = 40
+const PLAYER_RADIUS = 10
+const FOG_CELL = 20
 const FOG_COLS = Math.ceil(MAP_WIDTH / FOG_CELL)
 const FOG_ROWS = Math.ceil(MAP_HEIGHT / FOG_CELL)
-const VISION_RADIUS = 115
+const VISION_RADIUS = 160
+const VISION_FADE = 50 // outer ring partial reveal
 // Pixel palette (sketchy.jsx pixel mode)
 const FOG_COLOR = 0x2a2540
 const FOG_ALPHA = 0.78
+const FOG_ALPHA_EDGE = 0.42
 const BG_HEX = '#d8e3c4'
 const INK_HEX = 0x2a2540
 const PAPER_HEX = 0xfff5dc
@@ -43,6 +45,7 @@ export class MapScene extends Phaser.Scene {
   private hazardGfx!: Phaser.GameObjects.Graphics
   private portalGfx!: Phaser.GameObjects.Graphics
   private revealedCells = new Set<string>()
+  private edgeCells = new Set<string>()
   private fogDirty = true
   private collectibleSprites = new Map<string, Phaser.GameObjects.Image>()
   private collectibleLabels = new Map<string, Phaser.GameObjects.Text>()
@@ -81,14 +84,14 @@ export class MapScene extends Phaser.Scene {
     this.centerMarker = this.add.circle(
       MAP_CENTER.x,
       MAP_CENTER.y,
-      36,
+      28,
       WATER_HEX,
       0.85,
     )
     this.centerMarker.setStrokeStyle(3, INK_HEX, 1)
     this.centerMarker.setDepth(1)
     this.add
-      .text(MAP_CENTER.x, MAP_CENTER.y + 46, 'pozo', {
+      .text(MAP_CENTER.x, MAP_CENTER.y + 36, 'pozo', {
         fontFamily: '"JetBrains Mono", monospace',
         fontSize: '10px',
         color: '#2a2540',
@@ -224,18 +227,25 @@ export class MapScene extends Phaser.Scene {
     const reach = Math.ceil(VISION_RADIUS / FOG_CELL) + 1
     const cx = Math.floor(pos.x / FOG_CELL)
     const cy = Math.floor(pos.y / FOG_CELL)
-    for (let dy = -reach; dy <= reach; dy++) {
-      for (let dx = -reach; dx <= reach; dx++) {
+    const outer = VISION_RADIUS + VISION_FADE
+    for (let dy = -reach - 3; dy <= reach + 3; dy++) {
+      for (let dx = -reach - 3; dx <= reach + 3; dx++) {
         const col = cx + dx
         const row = cy + dy
         if (col < 0 || row < 0 || col >= FOG_COLS || row >= FOG_ROWS) continue
         const ccx = col * FOG_CELL + FOG_CELL / 2
         const ccy = row * FOG_CELL + FOG_CELL / 2
         const d = Math.hypot(ccx - pos.x, ccy - pos.y)
+        const key = `${col},${row}`
         if (d <= VISION_RADIUS) {
-          const key = `${col},${row}`
           if (!this.revealedCells.has(key)) {
             this.revealedCells.add(key)
+            this.edgeCells.delete(key)
+            this.fogDirty = true
+          }
+        } else if (d <= outer) {
+          if (!this.revealedCells.has(key) && !this.edgeCells.has(key)) {
+            this.edgeCells.add(key)
             this.fogDirty = true
           }
         }
@@ -245,10 +255,12 @@ export class MapScene extends Phaser.Scene {
 
   private redrawFog(): void {
     this.fogGfx.clear()
-    this.fogGfx.fillStyle(FOG_COLOR, FOG_ALPHA)
     for (let row = 0; row < FOG_ROWS; row++) {
       for (let col = 0; col < FOG_COLS; col++) {
-        if (this.revealedCells.has(`${col},${row}`)) continue
+        const key = `${col},${row}`
+        if (this.revealedCells.has(key)) continue
+        const alpha = this.edgeCells.has(key) ? FOG_ALPHA_EDGE : FOG_ALPHA
+        this.fogGfx.fillStyle(FOG_COLOR, alpha)
         this.fogGfx.fillRect(
           col * FOG_CELL,
           row * FOG_CELL,
@@ -339,12 +351,12 @@ export class MapScene extends Phaser.Scene {
       const textureKey = `pkmn-${c.defId}`
       if (!this.textures.exists(textureKey)) continue
       const sprite = this.add.image(c.pos.x, c.pos.y, textureKey)
-      sprite.setScale(2)
+      sprite.setScale(1.4)
       sprite.setDepth(3)
       this.collectibleSprites.set(c.id, sprite)
 
       const label = this.add
-        .text(c.pos.x, c.pos.y + 36, c.label.toUpperCase(), {
+        .text(c.pos.x, c.pos.y + 26, c.label.toUpperCase(), {
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: '9px',
           color: '#524a72',
