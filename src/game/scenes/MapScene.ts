@@ -9,7 +9,7 @@ import {
   MAP_HEIGHT,
   MAP_WIDTH,
 } from '../../data/map'
-import type { Hazard, Portal, Vec2 } from '../types'
+import type { Portal, Vec2 } from '../types'
 
 const PLAYER_RADIUS = 9
 const FOG_CELL = 20
@@ -25,10 +25,6 @@ const BG_HEX = '#d8e3c4'
 const INK_HEX = 0x2a2540
 const PAPER_HEX = 0xfff5dc
 const MAGIC_HEX = 0x7c5cc4
-const WATER_HEX = 0x6aa8c4
-const BONE_FILL = 0xf6e8c3
-const PAWN_COLOR = 0x2a2540
-const PAWN_OUTLINE = 0xfff5dc
 
 interface ActiveMovement {
   waypoints: Vec2[]
@@ -39,8 +35,8 @@ interface ActiveMovement {
 }
 
 export class MapScene extends Phaser.Scene {
-  private playerPawn!: Phaser.GameObjects.Arc
-  private centerMarker!: Phaser.GameObjects.Arc
+  private playerPawn!: Phaser.GameObjects.Image
+  private centerMarker!: Phaser.GameObjects.Image
   private previewGfx!: Phaser.GameObjects.Graphics
   private fogGfx!: Phaser.GameObjects.Graphics
   private hazardGfx!: Phaser.GameObjects.Graphics
@@ -71,6 +67,18 @@ export class MapScene extends Phaser.Scene {
       const def = INGREDIENTS[id]
       if (def.sprite) this.load.image(`mint-${id}`, def.sprite)
     }
+    this.load.image('pawn', '/assets/mapcell-0.png')
+    this.load.image('pozo', '/assets/mapcell-1.png')
+    this.load.image('plot-dirt', '/assets/mapcell-2.png')
+    this.load.image('plot-sap-1', '/assets/mapcell-3.png')
+    this.load.image('plot-sap-2', '/assets/mapcell-4.png')
+    this.load.image('plot-ripe', '/assets/mapcell-5.png')
+    for (let i = 0; i < 6; i++) {
+      this.load.image(`bone-${i}`, `/assets/bone-${i}.png`)
+    }
+    for (let i = 0; i < 16; i++) {
+      this.load.image(`decor-${i}`, `/assets/decor-${i}.png`)
+    }
   }
 
   create(): void {
@@ -88,17 +96,11 @@ export class MapScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(12)
 
-    this.centerMarker = this.add.circle(
-      MAP_CENTER.x,
-      MAP_CENTER.y,
-      26,
-      WATER_HEX,
-      0.85,
-    )
-    this.centerMarker.setStrokeStyle(3, INK_HEX, 1)
+    this.centerMarker = this.add.image(MAP_CENTER.x, MAP_CENTER.y, 'pozo')
+    this.centerMarker.setScale(0.32)
     this.centerMarker.setDepth(1)
     this.add
-      .text(MAP_CENTER.x, MAP_CENTER.y + 34, 'pozo', {
+      .text(MAP_CENTER.x, MAP_CENTER.y + 58, 'pozo', {
         fontFamily: '"JetBrains Mono", monospace',
         fontSize: '11px',
         color: '#2a2540',
@@ -126,13 +128,8 @@ export class MapScene extends Phaser.Scene {
     this.previewGfx.setDepth(9)
 
     const start = useGameStore.getState().playerPos
-    this.playerPawn = this.add.circle(
-      start.x,
-      start.y,
-      PLAYER_RADIUS,
-      PAWN_COLOR,
-    )
-    this.playerPawn.setStrokeStyle(3, PAWN_OUTLINE)
+    this.playerPawn = this.add.image(start.x, start.y, 'pawn')
+    this.playerPawn.setScale(0.18)
     this.playerPawn.setDepth(10)
 
     this.revealAround(start)
@@ -351,50 +348,24 @@ export class MapScene extends Phaser.Scene {
   private drawHazards(): void {
     const hazards = useGameStore.getState().hazards
     this.hazardGfx.clear()
+    let i = 0
     for (const h of hazards) {
-      this.drawHazard(h)
+      const variant = simpleHash(h.id) % 6
+      const tex = `bone-${variant}`
+      if (this.textures.exists(tex)) {
+        const sprite = this.add.image(h.pos.x, h.pos.y, tex)
+        sprite.setScale(0.09 + (i % 3) * 0.01)
+        sprite.setRotation((h.angle ?? 0) + Math.PI / 2)
+        sprite.setDepth(2)
+      } else {
+        // fallback ink dot
+        this.hazardGfx.fillStyle(INK_HEX, 1)
+        this.hazardGfx.fillCircle(h.pos.x, h.pos.y, 6)
+      }
+      i++
     }
   }
 
-  private drawHazard(h: Hazard): void {
-    const { x, y } = h.pos
-    const r = h.radius
-    const angle = h.angle ?? 0
-    const cos = Math.cos(angle)
-    const sin = Math.sin(angle)
-    const dx = cos * r * 0.65
-    const dy = sin * r * 0.65
-    const endR = r * 0.45
-
-    // bone shaft (thick line between knobs)
-    this.hazardGfx.lineStyle(r * 0.55, BONE_FILL, 1)
-    this.hazardGfx.beginPath()
-    this.hazardGfx.moveTo(x - dx, y - dy)
-    this.hazardGfx.lineTo(x + dx, y + dy)
-    this.hazardGfx.strokePath()
-
-    // knob fill
-    this.hazardGfx.fillStyle(BONE_FILL, 1)
-    this.hazardGfx.fillCircle(x - dx, y - dy, endR)
-    this.hazardGfx.fillCircle(x + dx, y + dy, endR)
-
-    // ink outlines for chunky pixel feel
-    this.hazardGfx.lineStyle(2, INK_HEX, 1)
-    this.hazardGfx.strokeCircle(x - dx, y - dy, endR)
-    this.hazardGfx.strokeCircle(x + dx, y + dy, endR)
-
-    // re-draw shaft outline edges
-    const nx = -sin
-    const ny = cos
-    const halfShaft = r * 0.27
-    this.hazardGfx.lineStyle(2, INK_HEX, 1)
-    this.hazardGfx.beginPath()
-    this.hazardGfx.moveTo(x - dx + nx * halfShaft, y - dy + ny * halfShaft)
-    this.hazardGfx.lineTo(x + dx + nx * halfShaft, y + dy + ny * halfShaft)
-    this.hazardGfx.moveTo(x - dx - nx * halfShaft, y - dy - ny * halfShaft)
-    this.hazardGfx.lineTo(x + dx - nx * halfShaft, y + dy - ny * halfShaft)
-    this.hazardGfx.strokePath()
-  }
 
   private drawGrassTexture(): void {
     const gfx = this.add.graphics()
@@ -536,21 +507,24 @@ export class MapScene extends Phaser.Scene {
       if (!c) {
         c = this.add.container(plot.pos.x, plot.pos.y)
         c.setDepth(2)
-        c.setSize(56, 56)
+        c.setSize(60, 60)
         c.setInteractive(
-          new Phaser.Geom.Rectangle(-28, -28, 56, 56),
+          new Phaser.Geom.Rectangle(-30, -30, 60, 60),
           Phaser.Geom.Rectangle.Contains,
         )
         c.on('pointerdown', () => this.handlePlotClick(plot.id))
-        const dirt = this.add.rectangle(0, 0, 52, 52, 0x8b5a2b)
-        dirt.setStrokeStyle(3, INK_HEX)
-        const inner = this.add.rectangle(0, 0, 44, 44, 0x6e4520)
-        c.add(dirt)
-        c.add(inner)
+        if (this.textures.exists('plot-dirt')) {
+          const dirt = this.add.image(0, 0, 'plot-dirt')
+          dirt.setScale(0.18)
+          c.add(dirt)
+        } else {
+          const dirt = this.add.rectangle(0, 0, 52, 52, 0x8b5a2b)
+          dirt.setStrokeStyle(3, INK_HEX)
+          c.add(dirt)
+        }
         this.plotContainers.set(plot.id, c)
       }
-      // Remove dynamic children beyond the two static (dirt + inner).
-      while (c.length > 2) c.removeAt(2, true)
+      while (c.length > 1) c.removeAt(1, true)
 
       if (plot.seedId && plot.plantedAtMs != null) {
         const seed = getSeed(plot.seedId)
@@ -558,25 +532,27 @@ export class MapScene extends Phaser.Scene {
         const growth = Math.min(1, (now - plot.plantedAtMs) / seed.growthMs)
         const ing = getIngredient(seed.ingredientId)
         if (growth >= 1) {
-          // Ripe — render mint sprite if loaded
           const tex = `mint-${seed.ingredientId}`
           if (this.textures.exists(tex)) {
-            const sprite = this.add.image(0, -2, tex)
+            const sprite = this.add.image(0, -6, tex)
             sprite.setScale(2)
             c.add(sprite)
-            const glow = this.add.circle(0, 0, 26, ing?.color ?? 0xffffff, 0.18)
-            c.addAt(glow, 2)
-          } else {
-            const dot = this.add.circle(0, 0, 14, ing?.color ?? 0x4a8a3d)
-            dot.setStrokeStyle(2, INK_HEX)
-            c.add(dot)
+            const glow = this.add.circle(0, -2, 28, ing?.color ?? 0xffffff, 0.22)
+            c.addAt(glow, 0)
           }
         } else {
-          // Sapling — colored dot that grows
-          const r = 4 + 10 * growth
-          const sap = this.add.circle(0, 6 - 4 * growth, r, ing?.color ?? 0x4a8a3d)
-          sap.setStrokeStyle(2, INK_HEX)
-          c.add(sap)
+          // Sapling — use sap-1 then sap-2 based on growth
+          const stage = growth > 0.5 ? 'plot-sap-2' : 'plot-sap-1'
+          if (this.textures.exists(stage)) {
+            const sap = this.add.image(0, -4, stage)
+            sap.setScale(0.13 + 0.05 * growth)
+            c.add(sap)
+          } else {
+            const r = 4 + 10 * growth
+            const sap = this.add.circle(0, 6 - 4 * growth, r, ing?.color ?? 0x4a8a3d)
+            sap.setStrokeStyle(2, INK_HEX)
+            c.add(sap)
+          }
         }
       }
     }
@@ -641,4 +617,12 @@ export class MapScene extends Phaser.Scene {
 function overlaps(a: Vec2, b: Vec2, radius: number): boolean {
   const d = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y)
   return d < radius + PLAYER_RADIUS
+}
+
+function simpleHash(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  }
+  return Math.abs(h)
 }
