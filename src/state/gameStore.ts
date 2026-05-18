@@ -357,7 +357,7 @@ export const useGameStore = create<GameState>((set) => ({
       if (!def) return {}
       if (state.cauldron.grind <= 0) return {}
       const sliced = slicePathByFraction(def.path, state.cauldron.grind)
-      const waypoints = transformPath(sliced, state.playerPos, state.aimAngle)
+      const waypoints = transformPath(sliced, state.playerPos, 0)
       return {
         pendingMovement: { waypoints, speed: MOVE_SPEED, kind: 'ingredient' },
         isPouring: true,

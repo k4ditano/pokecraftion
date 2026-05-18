@@ -130,8 +130,7 @@ export class MapScene extends Phaser.Scene {
     this.revealAround(start)
     this.redrawFog()
 
-    this.input.on('pointermove', this.onPointerMove, this)
-    this.input.on('pointerdown', this.onPointerDown, this)
+    // No pointer aim — ingredient paths are fixed orientations
 
     this.unsubStore = useGameStore.subscribe((state, prev) => {
       if (state.collectibles !== prev.collectibles) this.renderCollectibles()
@@ -152,8 +151,6 @@ export class MapScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubStore?.()
       this.unsubStore = null
-      this.input.off('pointermove', this.onPointerMove, this)
-      this.input.off('pointerdown', this.onPointerDown, this)
     })
   }
 
@@ -459,15 +456,11 @@ export class MapScene extends Phaser.Scene {
       return
     }
 
-    const fullRotated = transformPath(
-      def.path,
-      state.playerPos,
-      state.aimAngle,
-    )
+    const fullPath = transformPath(def.path, state.playerPos, 0)
 
-    if (fullRotated.length >= 2) {
-      this.drawWaypoints(fullRotated, def.color, 0.25, 2)
-      const ghostEnd = fullRotated[fullRotated.length - 1]
+    if (fullPath.length >= 2) {
+      this.drawWaypoints(fullPath, def.color, 0.25, 2)
+      const ghostEnd = fullPath[fullPath.length - 1]
       this.previewGfx.fillStyle(def.color, 0.3)
       this.previewGfx.fillCircle(ghostEnd.x, ghostEnd.y, 5)
     }
@@ -475,7 +468,7 @@ export class MapScene extends Phaser.Scene {
     if (state.cauldron.grind > 0) {
       const sliced = slicePathByFraction(def.path, state.cauldron.grind)
       if (sliced.length >= 2) {
-        const ground = transformPath(sliced, state.playerPos, state.aimAngle)
+        const ground = transformPath(sliced, state.playerPos, 0)
         this.drawWaypoints(ground, def.color, 0.95, 3)
         const end = ground[ground.length - 1]
         this.previewGfx.fillStyle(def.color, 1)
@@ -498,24 +491,6 @@ export class MapScene extends Phaser.Scene {
       this.previewGfx.lineTo(pts[i].x, pts[i].y)
     }
     this.previewGfx.strokePath()
-  }
-
-  private onPointerMove(pointer: Phaser.Input.Pointer): void {
-    if (this.movement) return
-    if (!pointer.isDown) return
-    this.aimAt(pointer.x, pointer.y)
-  }
-
-  private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    if (this.movement) return
-    this.aimAt(pointer.x, pointer.y)
-  }
-
-  private aimAt(x: number, y: number): void {
-    const state = useGameStore.getState()
-    const origin = state.playerPos
-    const angle = Math.atan2(y - origin.y, x - origin.x)
-    state.setAim(angle)
   }
 
   private checkCollisions(_pos: Vec2): void {
