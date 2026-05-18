@@ -8,6 +8,21 @@ export interface IngredientDef {
   sprite?: string
 }
 
+export interface SeedDef {
+  id: string
+  name: string
+  ingredientId: string
+  growthMs: number
+  yield: number
+}
+
+export interface Plot {
+  id: string
+  pos: Vec2
+  seedId?: string
+  plantedAtMs?: number
+}
+
 export type CollectibleKind = 'pokemon' | 'item'
 
 export interface Collectible {

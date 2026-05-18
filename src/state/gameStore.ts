@@ -4,10 +4,12 @@ import type {
   EventEffect,
   Hazard,
   MtItem,
+  Plot,
   Portal,
   RunNode,
   Vec2,
 } from '../game/types'
+import { getSeed } from '../data/seeds'
 import { getMtDef, MT_DEFS, STARTER_MTS } from '../data/mts'
 import { useMetaStore, UPGRADES } from './metaStore'
 import { getIngredient } from '../data/ingredients'
@@ -24,7 +26,9 @@ import {
   STARTER_HAZARDS,
   STARTER_INVENTORY,
   STARTER_PLAYER_POS,
+  STARTER_PLOTS,
   STARTER_PORTALS,
+  STARTER_SEEDS,
 } from '../data/starter'
 import { STARTER_GOLD, STARTER_PATH } from '../data/runPath'
 import {
@@ -113,6 +117,9 @@ interface GameState {
   isPouring: boolean
   isWatering: boolean
 
+  seeds: Record<string, number>
+  plots: Plot[]
+
   battle: BattleState | null
 
   setPhase: (phase: GamePhase) => void
@@ -133,6 +140,9 @@ interface GameState {
   stopWaterFlow: () => void
   consumeWater: (amount: number) => void
   consumePendingMovement: () => void
+  addSeed: (id: string, qty: number) => void
+  plantSeed: (plotId: string, seedId: string) => void
+  harvestPlot: (plotId: string) => void
   damageFromHazard: () => void
 
   openPath: () => void
@@ -177,6 +187,8 @@ type InitialStateFields = Pick<
   | 'teamPanelIdx'
   | 'isPouring'
   | 'isWatering'
+  | 'seeds'
+  | 'plots'
   | 'battle'
 >
 
@@ -239,6 +251,8 @@ function buildInitialState(): InitialStateFields {
     teamPanelIdx: null,
     isPouring: false,
     isWatering: false,
+    seeds: { ...STARTER_SEEDS },
+    plots: STARTER_PLOTS.map((p) => ({ ...p, pos: { ...p.pos } })),
     battle: null,
   }
 }
@@ -381,6 +395,53 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         water: next,
         isWatering: next <= 0 ? false : state.isWatering,
+      }
+    }),
+
+  addSeed: (id, qty) =>
+    set((state) => ({
+      seeds: { ...state.seeds, [id]: (state.seeds[id] ?? 0) + qty },
+    })),
+
+  plantSeed: (plotId, seedId) =>
+    set((state) => {
+      const plot = state.plots.find((p) => p.id === plotId)
+      if (!plot || plot.seedId) return {}
+      const have = state.seeds[seedId] ?? 0
+      if (have <= 0) return {}
+      const seedDef = getSeed(seedId)
+      if (!seedDef) return {}
+      const nextSeeds = { ...state.seeds, [seedId]: have - 1 }
+      if (nextSeeds[seedId] <= 0) delete nextSeeds[seedId]
+      return {
+        seeds: nextSeeds,
+        plots: state.plots.map((p) =>
+          p.id === plotId
+            ? { ...p, seedId, plantedAtMs: performance.now() }
+            : p,
+        ),
+      }
+    }),
+
+  harvestPlot: (plotId) =>
+    set((state) => {
+      const plot = state.plots.find((p) => p.id === plotId)
+      if (!plot || !plot.seedId || plot.plantedAtMs == null) return {}
+      const seedDef = getSeed(plot.seedId)
+      if (!seedDef) return {}
+      const ripe =
+        performance.now() - plot.plantedAtMs >= seedDef.growthMs
+      if (!ripe) return {}
+      const nextInv = applyIngredientGains(state.inventory, [
+        { id: seedDef.ingredientId, qty: seedDef.yield },
+      ])
+      return {
+        inventory: nextInv,
+        plots: state.plots.map((p) =>
+          p.id === plotId
+            ? { ...p, seedId: undefined, plantedAtMs: undefined }
+            : p,
+        ),
       }
     }),
 

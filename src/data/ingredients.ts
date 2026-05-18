@@ -64,46 +64,46 @@ const SPRITE_BASE =
 export const INGREDIENTS: Record<string, IngredientDef> = {
   straight: {
     id: 'straight',
-    name: 'Piedra Hoja',
-    color: 0x4a8a3d,
+    name: 'Menta Verde',
+    color: 0x6cb054,
     // Straight line going EAST
     path: [
       { x: 0, y: 0 },
       { x: 150, y: 0 },
     ],
-    sprite: `${SPRITE_BASE}/evo-item/leaf-stone.png`,
+    sprite: `${SPRITE_BASE}/mint/speed.png`,
   },
   scurve: {
     id: 'scurve',
-    name: 'Piedra Agua',
-    color: 0x6aa8c4,
+    name: 'Menta Azul',
+    color: 0x3a6a9c,
     // S-curve going SOUTH (vertical wave)
     path: generateSCurve(180, 44, 48, 'y'),
-    sprite: `${SPRITE_BASE}/evo-item/water-stone.png`,
+    sprite: `${SPRITE_BASE}/mint/defense.png`,
   },
   jump: {
     id: 'jump',
-    name: 'Piedra Fuego',
+    name: 'Menta Roja',
     color: 0xcf4640,
     // Parabolic arc launching NORTH-WEST (up + left)
     path: rotatePath(generateArc(170, -85, 36), Math.PI * 0.75),
-    sprite: `${SPRITE_BASE}/evo-item/fire-stone.png`,
+    sprite: `${SPRITE_BASE}/mint/attack.png`,
   },
   thunder: {
     id: 'thunder',
-    name: 'Piedra Trueno',
-    color: 0xe0a020,
+    name: 'Menta Aqua',
+    color: 0x4ac9d4,
     // Zigzag going EAST with sharp Y oscillation
     path: generateZigzag(180, 38, 4, 48),
-    sprite: `${SPRITE_BASE}/evo-item/thunder-stone.png`,
+    sprite: `${SPRITE_BASE}/mint/special-attack.png`,
   },
   moon: {
     id: 'moon',
-    name: 'Piedra Luna',
-    color: 0x7c5cc4,
+    name: 'Menta Rosa',
+    color: 0xe89bc4,
     // Parabolic arc launching SOUTH-WEST (down + left)
     path: rotatePath(generateArc(170, -85, 36), Math.PI * 1.25),
-    sprite: `${SPRITE_BASE}/evo-item/moon-stone.png`,
+    sprite: `${SPRITE_BASE}/mint/special-defense.png`,
   },
 }
 

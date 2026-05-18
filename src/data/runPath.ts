@@ -22,8 +22,8 @@ export const STARTER_PATH: RunNode[] = [
       'Un anciano te ofrece compartir secretos a cambio de algo de agua.',
     options: [
       {
-        label: 'Aceptar (−1 Agua, +1 Baya curva)',
-        effect: { kind: 'gainIngredient', id: 'scurve', name: 'Baya curva', qty: 1 },
+        label: 'Aceptar (+1 Menta Azul)',
+        effect: { kind: 'gainIngredient', id: 'scurve', name: 'Menta Azul', qty: 1 },
       },
       {
         label: 'Rechazar (+5 monedas)',
@@ -36,9 +36,11 @@ export const STARTER_PATH: RunNode[] = [
     type: 'merchant',
     label: 'Mercader del bosque',
     offers: [
-      { id: 'straight', name: 'Piedra Hoja', qty: 2, price: 6 },
-      { id: 'scurve', name: 'Piedra Agua', qty: 1, price: 8 },
-      { id: 'jump', name: 'Piedra Fuego', qty: 1, price: 12 },
+      { id: 'straight', name: 'Menta Verde', qty: 2, price: 6 },
+      { id: 'scurve', name: 'Menta Azul', qty: 1, price: 8 },
+      { id: 'jump', name: 'Menta Roja', qty: 1, price: 12 },
+      { id: 'seed-straight', name: 'Semilla Verde', qty: 2, price: 5 },
+      { id: 'seed-thunder', name: 'Semilla Aqua', qty: 1, price: 10 },
     ],
   },
   {

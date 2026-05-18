@@ -1,4 +1,4 @@
-import type { Collectible, Hazard, Portal, Vec2 } from '../game/types'
+import type { Collectible, Hazard, Plot, Portal, Vec2 } from '../game/types'
 import type { InventoryItem } from '../state/gameStore'
 import { MAP_CENTER } from './map'
 
@@ -67,14 +67,28 @@ function blobHazards(
 
 
 export const STARTER_INVENTORY: InventoryItem[] = [
-  { id: 'straight', name: 'Piedra Hoja', qty: 3 },
-  { id: 'scurve', name: 'Piedra Agua', qty: 3 },
-  { id: 'jump', name: 'Piedra Fuego', qty: 2 },
-  { id: 'thunder', name: 'Piedra Trueno', qty: 2 },
-  { id: 'moon', name: 'Piedra Luna', qty: 2 },
+  { id: 'straight', name: 'Menta Verde', qty: 3 },
+  { id: 'scurve', name: 'Menta Azul', qty: 3 },
+  { id: 'jump', name: 'Menta Roja', qty: 2 },
+  { id: 'thunder', name: 'Menta Aqua', qty: 2 },
+  { id: 'moon', name: 'Menta Rosa', qty: 2 },
 ]
 
 export const STARTER_PLAYER_POS = { ...MAP_CENTER }
+
+export const STARTER_SEEDS: Record<string, number> = {
+  'seed-straight': 2,
+  'seed-scurve': 1,
+}
+
+export const STARTER_PLOTS: Plot[] = [
+  // Always one within revealed area on spawn (≤200px from center)
+  { id: 'plot-1', pos: { x: 1100, y: 480 } },
+  // Scattered farther out, revealed via exploration
+  { id: 'plot-2', pos: { x: 540, y: 760 } },
+  { id: 'plot-3', pos: { x: 1380, y: 220 } },
+  { id: 'plot-4', pos: { x: 380, y: 420 } },
+]
 
 export const STARTER_PORTALS: Portal[] = [
   {

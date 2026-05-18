@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { useGameStore } from '../../state/gameStore'
-import { getIngredient } from '../../data/ingredients'
+import { getIngredient, INGREDIENTS } from '../../data/ingredients'
+import { getSeed } from '../../data/seeds'
 import { spriteUrlFor } from '../../services/pokeapi'
 import { slicePathByFraction, transformPath } from '../pathUtils'
 import {
@@ -49,6 +50,7 @@ export class MapScene extends Phaser.Scene {
   private fogDirty = true
   private collectibleSprites = new Map<string, Phaser.GameObjects.Image>()
   private collectibleLabels = new Map<string, Phaser.GameObjects.Text>()
+  private plotContainers = new Map<string, Phaser.GameObjects.Container>()
   private movement: ActiveMovement | null = null
   private waterAcc = 0
   private unsubStore: (() => void) | null = null
@@ -64,6 +66,10 @@ export class MapScene extends Phaser.Scene {
       if (c.kind === 'pokemon') {
         this.load.image(`pkmn-${c.defId}`, spriteUrlFor(Number(c.defId)))
       }
+    }
+    for (const id of Object.keys(INGREDIENTS)) {
+      const def = INGREDIENTS[id]
+      if (def.sprite) this.load.image(`mint-${id}`, def.sprite)
     }
   }
 
@@ -108,6 +114,8 @@ export class MapScene extends Phaser.Scene {
     this.hazardGfx = this.add.graphics()
     this.hazardGfx.setDepth(2)
     this.drawHazards()
+
+    this.renderPlots()
 
     this.renderCollectibles()
 
@@ -156,6 +164,7 @@ export class MapScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     this.drawCauldronPreview()
+    this.renderPlots()
 
     if (this.fogDirty) this.redrawFog()
 
@@ -497,6 +506,78 @@ export class MapScene extends Phaser.Scene {
     // Capture-on-touch removed: map pokémons are pure decoration.
     // Real party seeded by buildInitialState.
     void _pos
+  }
+
+  private renderPlots(): void {
+    const state = useGameStore.getState()
+    const now = performance.now()
+    for (const plot of state.plots) {
+      let c = this.plotContainers.get(plot.id)
+      if (!c) {
+        c = this.add.container(plot.pos.x, plot.pos.y)
+        c.setDepth(2)
+        c.setSize(56, 56)
+        c.setInteractive(
+          new Phaser.Geom.Rectangle(-28, -28, 56, 56),
+          Phaser.Geom.Rectangle.Contains,
+        )
+        c.on('pointerdown', () => this.handlePlotClick(plot.id))
+        const dirt = this.add.rectangle(0, 0, 52, 52, 0x8b5a2b)
+        dirt.setStrokeStyle(3, INK_HEX)
+        const inner = this.add.rectangle(0, 0, 44, 44, 0x6e4520)
+        c.add(dirt)
+        c.add(inner)
+        this.plotContainers.set(plot.id, c)
+      }
+      // Remove dynamic children beyond the two static (dirt + inner).
+      while (c.length > 2) c.removeAt(2, true)
+
+      if (plot.seedId && plot.plantedAtMs != null) {
+        const seed = getSeed(plot.seedId)
+        if (!seed) continue
+        const growth = Math.min(1, (now - plot.plantedAtMs) / seed.growthMs)
+        const ing = getIngredient(seed.ingredientId)
+        if (growth >= 1) {
+          // Ripe — render mint sprite if loaded
+          const tex = `mint-${seed.ingredientId}`
+          if (this.textures.exists(tex)) {
+            const sprite = this.add.image(0, -2, tex)
+            sprite.setScale(2)
+            c.add(sprite)
+            const glow = this.add.circle(0, 0, 26, ing?.color ?? 0xffffff, 0.18)
+            c.addAt(glow, 2)
+          } else {
+            const dot = this.add.circle(0, 0, 14, ing?.color ?? 0x4a8a3d)
+            dot.setStrokeStyle(2, INK_HEX)
+            c.add(dot)
+          }
+        } else {
+          // Sapling — colored dot that grows
+          const r = 4 + 10 * growth
+          const sap = this.add.circle(0, 6 - 4 * growth, r, ing?.color ?? 0x4a8a3d)
+          sap.setStrokeStyle(2, INK_HEX)
+          c.add(sap)
+        }
+      }
+    }
+  }
+
+  private handlePlotClick(plotId: string): void {
+    const state = useGameStore.getState()
+    const plot = state.plots.find((p) => p.id === plotId)
+    if (!plot) return
+    if (plot.seedId && plot.plantedAtMs != null) {
+      const seed = getSeed(plot.seedId)
+      if (!seed) return
+      const ripe = performance.now() - plot.plantedAtMs >= seed.growthMs
+      if (ripe) state.harvestPlot(plotId)
+      return
+    }
+    // Empty plot — plant first available seed
+    const firstSeedId = Object.keys(state.seeds).find(
+      (id) => (state.seeds[id] ?? 0) > 0,
+    )
+    if (firstSeedId) state.plantSeed(plotId, firstSeedId)
   }
 
   private checkPortalAt(pos: Vec2): void {
