@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { INGREDIENTS } from '../data/ingredients'
 import { getMove } from '../data/moves'
+import { MAP_CENTER } from '../data/map'
 
 function hexColor(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`
@@ -27,6 +28,10 @@ export function Hud() {
   const pourWater = useGameStore((s) => s.pourWater)
   const openPath = useGameStore((s) => s.openPath)
   const openTeamPanel = useGameStore((s) => s.openTeamPanel)
+  const healAtSpring = useGameStore((s) => s.healAtSpring)
+  const playerPos = useGameStore((s) => s.playerPos)
+  const atCenter =
+    Math.hypot(playerPos.x - MAP_CENTER.x, playerPos.y - MAP_CENTER.y) <= 60
 
   const busy = !!pendingMovement
   const cauldronDef = cauldron ? INGREDIENTS[cauldron.ingredientId] : null
@@ -160,6 +165,18 @@ export function Hud() {
             title="Vierte agua: te lleva despacio al centro"
           >
             💧 Verter ({water})
+          </button>
+          <button
+            className="btn water"
+            disabled={busy || !!cauldron || water <= 0 || !atCenter || party.length === 0}
+            onClick={() => healAtSpring()}
+            title={
+              atCenter
+                ? 'Manantial: cura todo el equipo. Cuesta 1 agua.'
+                : 'Ve al pozo central para usar el manantial.'
+            }
+          >
+            ♨ Manantial
           </button>
         </div>
 

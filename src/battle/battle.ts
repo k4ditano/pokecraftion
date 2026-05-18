@@ -26,14 +26,16 @@ export function buildBattlePokemon(
   name: string,
   level: number,
   moveOverride?: string,
+  currentHp?: number,
 ): BattlePokemon {
   const data = getPokemonData(pokemonId)
   const maxHp = computeHp(data.baseHp, level)
+  const hp = currentHp !== undefined ? Math.max(0, Math.min(currentHp, maxHp)) : maxHp
   return {
     pokemonId,
     name,
     level,
-    hp: maxHp,
+    hp,
     maxHp,
     atk: computeStat(data.baseAtk, level),
     def: computeStat(data.baseDef, level),
@@ -41,6 +43,10 @@ export function buildBattlePokemon(
     types: data.types,
     move: moveOverride ?? defaultMoveFor(pokemonId),
   }
+}
+
+export function maxHpFor(pokemonId: number, level: number): number {
+  return computeHp(getPokemonData(pokemonId).baseHp, level)
 }
 
 export function buildEnemyParty(pokemons: TrainerPokemon[]): BattlePokemon[] {

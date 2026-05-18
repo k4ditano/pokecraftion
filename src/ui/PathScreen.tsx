@@ -36,7 +36,15 @@ export function PathScreen() {
 
         {runComplete && (
           <div className="run-complete">
-            🏆 Run completada. Has derrotado al jefe.
+            <div>🏆 Run completada. Has derrotado al jefe.</div>
+            <button
+              className="btn pour"
+              onClick={() => {
+                useGameStore.getState().restartRun()
+              }}
+            >
+              Empezar nueva run
+            </button>
           </div>
         )}
 

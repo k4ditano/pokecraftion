@@ -459,6 +459,10 @@ body,
   border-radius: 6px;
   text-align: center;
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
 }
 
 .nodes {

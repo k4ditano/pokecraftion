@@ -32,6 +32,7 @@ import {
   computeDamage,
   defaultMoveFor,
   effectivenessLabel,
+  maxHpFor,
   type BattlePokemon,
 } from '../battle/battle'
 import { getMove } from '../data/moves'
@@ -127,35 +128,64 @@ interface GameState {
   nextBattleMessage: () => void
   endBattle: () => void
 
+  healAtSpring: () => void
+
   openTeamPanel: (idx: number) => void
   closeTeamPanel: () => void
   applyMt: (mtId: string, partyIdx: number) => void
+
+  restartRun: () => void
+}
+
+type InitialStateFields = Pick<
+  GameState,
+  | 'phase'
+  | 'party'
+  | 'inventory'
+  | 'collectibles'
+  | 'portals'
+  | 'hazards'
+  | 'playerPos'
+  | 'water'
+  | 'cauldron'
+  | 'aimAngle'
+  | 'pendingMovement'
+  | 'gold'
+  | 'pathNodes'
+  | 'currentNodeIdx'
+  | 'isPathOpen'
+  | 'runComplete'
+  | 'mts'
+  | 'teamPanelIdx'
+  | 'battle'
+>
+
+function buildInitialState(): InitialStateFields {
+  return {
+    phase: 'map',
+    party: [],
+    inventory: STARTER_INVENTORY.map((i) => ({ ...i })),
+    collectibles: STARTER_COLLECTIBLES.map((c) => ({ ...c })),
+    portals: STARTER_PORTALS.map((p) => ({ ...p })),
+    hazards: STARTER_HAZARDS.map((h) => ({ ...h })),
+    playerPos: { ...STARTER_PLAYER_POS },
+    water: WATER_INITIAL,
+    cauldron: null,
+    aimAngle: 0,
+    pendingMovement: null,
+    gold: STARTER_GOLD,
+    pathNodes: JSON.parse(JSON.stringify(STARTER_PATH)) as RunNode[],
+    currentNodeIdx: 0,
+    isPathOpen: false,
+    runComplete: false,
+    mts: STARTER_MTS.map((m) => ({ ...m })),
+    teamPanelIdx: null,
+    battle: null,
+  }
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  phase: 'map',
-  party: [],
-  inventory: STARTER_INVENTORY.map((i) => ({ ...i })),
-  collectibles: STARTER_COLLECTIBLES.map((c) => ({ ...c })),
-  portals: STARTER_PORTALS.map((p) => ({ ...p })),
-  hazards: STARTER_HAZARDS.map((h) => ({ ...h })),
-  playerPos: { ...STARTER_PLAYER_POS },
-
-  water: WATER_INITIAL,
-  cauldron: null,
-  aimAngle: 0,
-  pendingMovement: null,
-
-  gold: STARTER_GOLD,
-  pathNodes: STARTER_PATH.map((n) => ({ ...n })),
-  currentNodeIdx: 0,
-  isPathOpen: false,
-  runComplete: false,
-
-  mts: STARTER_MTS.map((m) => ({ ...m })),
-  teamPanelIdx: null,
-
-  battle: null,
+  ...buildInitialState(),
 
   setPhase: (phase) => set({ phase }),
   addToParty: (member) =>
@@ -180,17 +210,22 @@ export const useGameStore = create<GameState>((set) => ({
       if (!target) return {}
       const newParty =
         target.kind === 'pokemon' && state.party.length < 6
-          ? [
-              ...state.party,
-              {
-                pokemonId: Number(target.defId),
-                name: target.label,
-                level: 5,
-                hp: 20,
-                maxHp: 20,
-                move: defaultMoveFor(Number(target.defId)),
-              },
-            ]
+          ? (() => {
+              const lvl = 5
+              const id = Number(target.defId)
+              const maxHp = maxHpFor(id, lvl)
+              return [
+                ...state.party,
+                {
+                  pokemonId: id,
+                  name: target.label,
+                  level: lvl,
+                  hp: maxHp,
+                  maxHp,
+                  move: defaultMoveFor(id),
+                },
+              ]
+            })()
           : state.party
       return {
         collectibles: state.collectibles.filter((c) => c.id !== collectibleId),
@@ -375,19 +410,21 @@ export const useGameStore = create<GameState>((set) => ({
       }
       if (state.party.length === 0) return {}
       const playerParty = state.party.map((m) =>
-        buildBattlePokemon(m.pokemonId, m.name, m.level, m.move),
+        buildBattlePokemon(m.pokemonId, m.name, m.level, m.move, m.hp),
       )
       const enemyParty = buildEnemyParty(node.pokemons)
+      const firstAlive = playerParty.findIndex((p) => p.hp > 0)
+      if (firstAlive === -1) return {}
       return {
         battle: {
           nodeId,
           playerParty,
           enemyParty,
-          playerActiveIdx: 0,
+          playerActiveIdx: firstAlive,
           enemyActiveIdx: 0,
           messages: [
             `${node.trainerName} te reta a un combate.`,
-            `¡Adelante, ${playerParty[0].name}!`,
+            `¡Adelante, ${playerParty[firstAlive].name}!`,
           ],
           result: null,
         },
@@ -487,6 +524,17 @@ export const useGameStore = create<GameState>((set) => ({
       }
     }),
 
+  healAtSpring: () =>
+    set((state) => {
+      const dx = state.playerPos.x - MAP_CENTER.x
+      const dy = state.playerPos.y - MAP_CENTER.y
+      if (Math.hypot(dx, dy) > 60) return {}
+      if (state.water <= 0) return {}
+      if (state.cauldron || state.pendingMovement) return {}
+      const healed = state.party.map((m) => ({ ...m, hp: m.maxHp }))
+      return { party: healed, water: state.water - 1 }
+    }),
+
   openTeamPanel: (idx) =>
     set((state) => {
       if (idx < 0 || idx >= state.party.length) return {}
@@ -512,10 +560,17 @@ export const useGameStore = create<GameState>((set) => ({
       return { party: newParty, mts: newMts }
     }),
 
+  restartRun: () => set(buildInitialState()),
+
   endBattle: () =>
     set((state) => {
       const battle = state.battle
       if (!battle) return {}
+      const partyWithHp = state.party.map((pm, i) => {
+        const bp = battle.playerParty[i]
+        if (!bp) return pm
+        return { ...pm, hp: bp.hp, maxHp: bp.maxHp }
+      })
       if (battle.result === 'win') {
         const node = state.pathNodes.find((n) => n.id === battle.nodeId)
         if (
@@ -530,6 +585,7 @@ export const useGameStore = create<GameState>((set) => ({
           )
           const nextIdx = state.currentNodeIdx + 1
           return {
+            party: partyWithHp,
             inventory,
             gold: state.gold + node.reward.gold,
             currentNodeIdx: nextIdx,
@@ -538,7 +594,7 @@ export const useGameStore = create<GameState>((set) => ({
           }
         }
       }
-      return { battle: null }
+      return { party: partyWithHp, battle: null }
     }),
 }))
 
