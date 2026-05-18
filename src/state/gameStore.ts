@@ -110,6 +110,8 @@ interface GameState {
   mts: MtItem[]
   teamPanelIdx: number | null
 
+  isPouring: boolean
+
   battle: BattleState | null
 
   setPhase: (phase: GamePhase) => void
@@ -124,6 +126,7 @@ interface GameState {
   incrementGrind: (delta: number) => void
   setAim: (angle: number) => void
   pourCauldron: () => void
+  stopPour: () => void
   pourWater: () => void
   consumePendingMovement: () => void
   damageFromHazard: () => void
@@ -168,6 +171,7 @@ type InitialStateFields = Pick<
   | 'runComplete'
   | 'mts'
   | 'teamPanelIdx'
+  | 'isPouring'
   | 'battle'
 >
 
@@ -219,6 +223,7 @@ function buildInitialState(): InitialStateFields {
     runComplete: false,
     mts,
     teamPanelIdx: null,
+    isPouring: false,
     battle: null,
   }
 }
@@ -341,8 +346,11 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         cauldron: null,
         pendingMovement: { waypoints, speed: MOVE_SPEED, kind: 'ingredient' },
+        isPouring: true,
       }
     }),
+
+  stopPour: () => set({ isPouring: false }),
 
   pourWater: () =>
     set((state) => {
@@ -369,7 +377,8 @@ export const useGameStore = create<GameState>((set) => ({
       }
     }),
 
-  consumePendingMovement: () => set({ pendingMovement: null }),
+  consumePendingMovement: () =>
+    set({ pendingMovement: null, isPouring: false }),
 
   damageFromHazard: () =>
     set((state) => ({ water: Math.max(0, state.water - 1) })),

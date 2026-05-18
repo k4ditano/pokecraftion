@@ -25,7 +25,6 @@ export function Hud() {
   const runComplete = useGameStore((s) => s.runComplete)
   const addToCauldron = useGameStore((s) => s.addToCauldron)
   const cancelCauldron = useGameStore((s) => s.cancelCauldron)
-  const pourCauldron = useGameStore((s) => s.pourCauldron)
   const pourWater = useGameStore((s) => s.pourWater)
   const openPath = useGameStore((s) => s.openPath)
   const openTeamPanel = useGameStore((s) => s.openTeamPanel)
@@ -147,13 +146,7 @@ export function Hud() {
               </div>
               <div className="cauldron-actions">
                 <MortarButton disabled={busy || cauldron.grind >= 1} />
-                <button
-                  className="btn pour"
-                  disabled={busy || cauldron.grind <= 0}
-                  onClick={() => pourCauldron()}
-                >
-                  Verter
-                </button>
+                <PourButton disabled={cauldron.grind <= 0} />
                 <button
                   className="btn cancel"
                   disabled={busy}
@@ -233,6 +226,33 @@ export function Hud() {
         </div>
       </div>
     </>
+  )
+}
+
+function PourButton({ disabled }: { disabled: boolean }) {
+  const pourCauldron = useGameStore((s) => s.pourCauldron)
+  const stopPour = useGameStore((s) => s.stopPour)
+  const isPouring = useGameStore((s) => s.isPouring)
+
+  const start = () => {
+    if (disabled) return
+    if (!isPouring) pourCauldron()
+  }
+  const stop = () => {
+    stopPour()
+  }
+
+  return (
+    <button
+      className="btn pour"
+      disabled={disabled}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+    >
+      {isPouring ? 'Vertiendo…' : 'Verter (mantén)'}
+    </button>
   )
 }
 

@@ -162,6 +162,19 @@ export class MapScene extends Phaser.Scene {
     if (this.fogDirty) this.redrawFog()
 
     if (!this.movement) return
+
+    // Hold-to-pour: abort ingredient movement when user releases.
+    // Water movement runs to completion (single discrete step).
+    const store = useGameStore.getState()
+    if (
+      store.pendingMovement?.kind === 'ingredient' &&
+      !store.isPouring
+    ) {
+      const cur = { x: this.playerPawn.x, y: this.playerPawn.y }
+      this.finishMovement(cur)
+      return
+    }
+
     const { waypoints, segIdx, speed } = this.movement
     if (segIdx >= waypoints.length - 1) return
 
