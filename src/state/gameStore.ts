@@ -111,6 +111,7 @@ interface GameState {
   teamPanelIdx: number | null
 
   isPouring: boolean
+  isWatering: boolean
 
   battle: BattleState | null
 
@@ -128,6 +129,9 @@ interface GameState {
   pourCauldron: () => void
   stopPour: () => void
   pourWater: () => void
+  startWaterFlow: () => void
+  stopWaterFlow: () => void
+  consumeWater: (amount: number) => void
   consumePendingMovement: () => void
   damageFromHazard: () => void
 
@@ -172,6 +176,7 @@ type InitialStateFields = Pick<
   | 'mts'
   | 'teamPanelIdx'
   | 'isPouring'
+  | 'isWatering'
   | 'battle'
 >
 
@@ -233,6 +238,7 @@ function buildInitialState(): InitialStateFields {
     mts,
     teamPanelIdx: null,
     isPouring: false,
+    isWatering: false,
     battle: null,
   }
 }
@@ -359,6 +365,24 @@ export const useGameStore = create<GameState>((set) => ({
     }),
 
   stopPour: () => set({ isPouring: false }),
+
+  startWaterFlow: () =>
+    set((state) => {
+      if (state.pendingMovement || state.cauldron) return {}
+      if (state.water <= 0) return {}
+      return { isWatering: true }
+    }),
+
+  stopWaterFlow: () => set({ isWatering: false }),
+
+  consumeWater: (amount) =>
+    set((state) => {
+      const next = Math.max(0, state.water - amount)
+      return {
+        water: next,
+        isWatering: next <= 0 ? false : state.isWatering,
+      }
+    }),
 
   pourWater: () =>
     set((state) => {

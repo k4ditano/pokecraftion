@@ -655,6 +655,7 @@ body {
 
 .tool-btn.tool-fire { background: #ffe1cc; border-color: var(--sk-accent); }
 .tool-btn.tool-rock { background: #e9e2f5; border-color: var(--sk-magic); }
+.tool-btn.tool-water { background: #d4e7f4; border-color: var(--sk-water); }
 
 .tool-btn.dragging {
   opacity: 0.4;

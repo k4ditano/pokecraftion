@@ -23,7 +23,6 @@ export function Hud() {
   const currentNodeIdx = useGameStore((s) => s.currentNodeIdx)
   const runComplete = useGameStore((s) => s.runComplete)
   const cancelCauldron = useGameStore((s) => s.cancelCauldron)
-  const pourWater = useGameStore((s) => s.pourWater)
   const openPath = useGameStore((s) => s.openPath)
   const openTeamPanel = useGameStore((s) => s.openTeamPanel)
   const healAtSpring = useGameStore((s) => s.healAtSpring)
@@ -160,15 +159,7 @@ export function Hud() {
         </div>
 
         <div className="hud-section water-section">
-          <div className="section-title">Agua</div>
-          <button
-            className="btn water"
-            disabled={busy || !!cauldron || water <= 0}
-            onClick={() => pourWater()}
-            title="Vierte agua: te lleva despacio al centro"
-          >
-            💧 Verter ({water})
-          </button>
+          <div className="section-title">Agua · {water}</div>
           <button
             className="btn water"
             disabled={busy || !!cauldron || water <= 0 || !atCenter || party.length === 0}
@@ -313,7 +304,7 @@ function IngredientDraggable({
   )
 }
 
-type ToolKind = 'fire' | 'rock'
+type ToolKind = 'fire' | 'rock' | 'water'
 
 interface DraggedTool {
   kind: ToolKind
@@ -324,34 +315,46 @@ interface DraggedTool {
 const TOOLS: DraggedTool[] = [
   { kind: 'fire', defId: 4, label: 'Charmander' },
   { kind: 'rock', defId: 74, label: 'Geodude' },
+  { kind: 'water', defId: 7, label: 'Squirtle' },
 ]
 
 function ToolDock() {
   const cauldron = useGameStore((s) => s.cauldron)
   const pendingMovement = useGameStore((s) => s.pendingMovement)
   const isPouring = useGameStore((s) => s.isPouring)
+  const isWatering = useGameStore((s) => s.isWatering)
+  const water = useGameStore((s) => s.water)
   const pourCauldron = useGameStore((s) => s.pourCauldron)
   const stopPour = useGameStore((s) => s.stopPour)
   const incrementGrind = useGameStore((s) => s.incrementGrind)
+  const startWaterFlow = useGameStore((s) => s.startWaterFlow)
+  const stopWaterFlow = useGameStore((s) => s.stopWaterFlow)
 
   const [dragging, setDragging] = useState<DraggedTool | null>(null)
   const [pointerPos, setPointerPos] = useState({ x: 0, y: 0 })
   const overTargetRef = useRef(false)
 
-  // Always-fresh refs to avoid stale closures inside global listeners.
   const stateRef = useRef({
     isPouring,
+    isWatering,
+    water,
     cauldron,
     pourCauldron,
     stopPour,
     incrementGrind,
+    startWaterFlow,
+    stopWaterFlow,
   })
   stateRef.current = {
     isPouring,
+    isWatering,
+    water,
     cauldron,
     pourCauldron,
     stopPour,
     incrementGrind,
+    startWaterFlow,
+    stopWaterFlow,
   }
 
   useEffect(() => {
@@ -367,9 +370,10 @@ function ToolDock() {
       return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     }
 
-    // Fire latches ON the first time it enters the cauldron; only
-    // releasing the pokémon stops it. Rock requires continuous overlap.
+    // Fire/water latch ON the first time they enter the cauldron; only
+    // releasing the pokémon stops them. Rock requires continuous overlap.
     let fireLatched = false
+    let waterLatched = false
 
     const tick = (ts: number) => {
       const last = lastTs
@@ -392,11 +396,16 @@ function ToolDock() {
       setPointerPos({ x: e.clientX, y: e.clientY })
       const isOver = checkOver(e.clientX, e.clientY)
       overTargetRef.current = isOver
+      const s = stateRef.current
       if (dragging.kind === 'fire' && isOver && !fireLatched) {
-        const s = stateRef.current
         if (s.cauldron && !s.isPouring) {
           s.pourCauldron()
           fireLatched = true
+        }
+      } else if (dragging.kind === 'water' && isOver && !waterLatched) {
+        if (!s.cauldron && !s.isWatering && s.water > 0) {
+          s.startWaterFlow()
+          waterLatched = true
         }
       }
     }
@@ -406,7 +415,11 @@ function ToolDock() {
       if (dragging.kind === 'fire' && fireLatched && s.isPouring) {
         s.stopPour()
       }
+      if (dragging.kind === 'water' && waterLatched && s.isWatering) {
+        s.stopWaterFlow()
+      }
       fireLatched = false
+      waterLatched = false
       overTargetRef.current = false
       setDragging(null)
     }
@@ -423,6 +436,7 @@ function ToolDock() {
       if (rafId !== null) cancelAnimationFrame(rafId)
       const s = stateRef.current
       if (fireLatched && s.isPouring) s.stopPour()
+      if (waterLatched && s.isWatering) s.stopWaterFlow()
       overTargetRef.current = false
     }
   }, [dragging])
@@ -435,6 +449,19 @@ function ToolDock() {
 
   const busy = !!pendingMovement
 
+  const labelFor = (k: ToolKind): string =>
+    k === 'fire' ? 'Calor' : k === 'rock' ? 'Mortero' : 'Agua'
+  const titleFor = (k: ToolKind): string => {
+    if (k === 'fire') return 'Charmander · arrastra y mantén sobre caldero para que la poción avance'
+    if (k === 'rock') return 'Geodude · mantén sobre caldero para moler'
+    return 'Squirtle · mantén sobre caldero para volver poco a poco al centro (consume agua)'
+  }
+  const disabledFor = (k: ToolKind): boolean => {
+    if (k === 'fire') return !cauldron
+    if (k === 'rock') return !cauldron || busy
+    return !!cauldron || busy || water <= 0
+  }
+
   return (
     <>
       <div className="hud-section tools-section">
@@ -445,15 +472,11 @@ function ToolDock() {
               key={t.kind}
               className={`tool-btn tool-${t.kind} ${dragging?.kind === t.kind ? 'dragging' : ''}`}
               onPointerDown={startDrag(t)}
-              disabled={busy && t.kind !== 'fire'}
-              title={
-                t.kind === 'fire'
-                  ? 'Arrastra al caldero para verter (mantén dentro = calor)'
-                  : 'Arrastra al caldero y mantén dentro para moler'
-              }
+              disabled={disabledFor(t.kind)}
+              title={titleFor(t.kind)}
             >
               <img src={spriteUrlFor(t.defId)} alt={t.label} draggable={false} />
-              <span>{t.kind === 'fire' ? 'Calor' : 'Mortero'}</span>
+              <span>{labelFor(t.kind)}</span>
             </button>
           ))}
         </div>

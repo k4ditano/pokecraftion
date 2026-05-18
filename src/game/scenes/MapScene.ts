@@ -50,6 +50,7 @@ export class MapScene extends Phaser.Scene {
   private collectibleSprites = new Map<string, Phaser.GameObjects.Image>()
   private collectibleLabels = new Map<string, Phaser.GameObjects.Text>()
   private movement: ActiveMovement | null = null
+  private waterAcc = 0
   private unsubStore: (() => void) | null = null
 
   constructor() {
@@ -161,6 +162,11 @@ export class MapScene extends Phaser.Scene {
 
     if (this.fogDirty) this.redrawFog()
 
+    if (!this.movement && useGameStore.getState().isWatering) {
+      this.tickWaterFlow(delta)
+      return
+    }
+
     if (!this.movement) return
 
     // Hold-to-pour: abort ingredient movement when user releases.
@@ -219,6 +225,37 @@ export class MapScene extends Phaser.Scene {
     const store = useGameStore.getState()
     store.setPlayerPos({ x: pos.x, y: pos.y })
     store.consumePendingMovement()
+  }
+
+  private tickWaterFlow(delta: number): void {
+    const store = useGameStore.getState()
+    if (store.water <= 0) {
+      store.stopWaterFlow()
+      this.waterAcc = 0
+      return
+    }
+    const dt = delta / 1000
+    const pawnX = this.playerPawn.x
+    const pawnY = this.playerPawn.y
+    const dx = MAP_CENTER.x - pawnX
+    const dy = MAP_CENTER.y - pawnY
+    const d = Math.hypot(dx, dy)
+    if (d > 2) {
+      const speed = 80
+      const step = Math.min(speed * dt, d)
+      const nx = pawnX + (dx / d) * step
+      const ny = pawnY + (dy / d) * step
+      this.playerPawn.setPosition(nx, ny)
+      this.revealAround({ x: nx, y: ny })
+      this.checkHazardsAt({ x: nx, y: ny })
+      store.setPlayerPos({ x: nx, y: ny })
+    }
+    this.waterAcc += dt
+    if (this.waterAcc >= 1.2) {
+      const units = Math.floor(this.waterAcc / 1.2)
+      this.waterAcc -= units * 1.2
+      store.consumeWater(units)
+    }
   }
 
   private beginMovement(waypoints: Vec2[], speed: number): void {
@@ -511,12 +548,12 @@ export class MapScene extends Phaser.Scene {
   }
 
   private checkHazardsAt(pos: Vec2): void {
-    if (!this.movement) return
     const hazards = useGameStore.getState().hazards
+    const hitSet = this.movement?.hitHazards
     for (const h of hazards) {
-      if (this.movement.hitHazards.has(h.id)) continue
+      if (hitSet && hitSet.has(h.id)) continue
       if (overlaps(pos, h.pos, h.radius)) {
-        this.movement.hitHazards.add(h.id)
+        hitSet?.add(h.id)
         useGameStore.getState().damageFromHazard()
         this.cameras.main.shake(160, 0.008)
         this.cameras.main.flash(120, 255, 60, 60)
