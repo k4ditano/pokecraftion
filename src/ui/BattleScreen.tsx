@@ -1,36 +1,82 @@
+import { useEffect, useRef } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { spriteUrlFor } from '../services/pokeapi'
 import { getMove } from '../data/moves'
 import type { BattlePokemon } from '../battle/battle'
 
+const AUTO_DELAY_MS = 700
+
 export function BattleScreen() {
   const battle = useGameStore((s) => s.battle)
-  const chooseBattleMove = useGameStore((s) => s.chooseBattleMove)
+  const advanceBattleTurn = useGameStore((s) => s.advanceBattleTurn)
   const nextBattleMessage = useGameStore((s) => s.nextBattleMessage)
   const endBattle = useGameStore((s) => s.endBattle)
+
+  const timerRef = useRef<number | null>(null)
+
+  const isOpen = !!battle
+  const messagesCount = battle?.messages.length ?? 0
+  const ended = battle?.result != null
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    if (ended) return
+    if (messagesCount === 0) {
+      timerRef.current = window.setTimeout(() => {
+        advanceBattleTurn()
+      }, 250)
+    }
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [isOpen, ended, messagesCount, advanceBattleTurn])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (ended) return
+    if (messagesCount === 0) return
+    const t = window.setTimeout(() => {
+      nextBattleMessage()
+    }, AUTO_DELAY_MS)
+    return () => clearTimeout(t)
+  }, [isOpen, ended, messagesCount, nextBattleMessage])
 
   if (!battle) return null
 
   const player = battle.playerParty[battle.playerActiveIdx]
   const enemy = battle.enemyParty[battle.enemyActiveIdx]
   const currentMessage = battle.messages[0]
-  const ended = battle.result !== null
-  const isMessagePhase = !!currentMessage
-  const canChoose = !isMessagePhase && !ended
+  const playerMove = getMove(player.move)
+  const enemyMove = getMove(enemy.move)
 
   return (
     <div className="battle-overlay">
       <div className="battle-screen">
         <div className="battle-arena">
           <div className="battle-side enemy">
-            <CombatantCard pkmn={enemy} side="enemy" />
+            <CombatantCard
+              pkmn={enemy}
+              moveName={enemyMove?.name ?? '—'}
+              side="enemy"
+            />
             <PartyDots
               party={battle.enemyParty}
               activeIdx={battle.enemyActiveIdx}
             />
           </div>
           <div className="battle-side player">
-            <CombatantCard pkmn={player} side="player" />
+            <CombatantCard
+              pkmn={player}
+              moveName={playerMove?.name ?? '—'}
+              side="player"
+            />
             <PartyDots
               party={battle.playerParty}
               activeIdx={battle.playerActiveIdx}
@@ -39,37 +85,22 @@ export function BattleScreen() {
         </div>
 
         <div className="battle-controls">
-          {isMessagePhase && (
+          {currentMessage && (
             <div className="battle-message">
               <div className="message-text">{currentMessage}</div>
               <button className="btn pour" onClick={() => nextBattleMessage()}>
-                Siguiente ▶
+                ▶ Saltar
               </button>
             </div>
           )}
 
-          {canChoose && (
-            <div className="move-grid">
-              {player.moves.map((moveId, i) => {
-                const m = getMove(moveId)
-                if (!m) return null
-                return (
-                  <button
-                    key={i}
-                    className={`btn move type-${m.type}`}
-                    onClick={() => chooseBattleMove(i)}
-                  >
-                    <div className="move-name">{m.name}</div>
-                    <div className="move-meta">
-                      {m.type} · pot {m.power} · prec {m.accuracy}
-                    </div>
-                  </button>
-                )
-              })}
+          {!currentMessage && !ended && (
+            <div className="battle-auto">
+              <div className="auto-text">Combate automático en curso…</div>
             </div>
           )}
 
-          {ended && !isMessagePhase && (
+          {ended && !currentMessage && (
             <div className="battle-result">
               <div className="result-text">
                 {battle.result === 'win'
@@ -89,9 +120,11 @@ export function BattleScreen() {
 
 function CombatantCard({
   pkmn,
+  moveName,
   side,
 }: {
   pkmn: BattlePokemon
+  moveName: string
   side: 'player' | 'enemy'
 }) {
   const hpPct = (pkmn.hp / pkmn.maxHp) * 100
@@ -103,7 +136,7 @@ function CombatantCard({
           {pkmn.name}{' '}
           <span className="combatant-types">[{pkmn.types.join('/')}]</span>
         </div>
-        <div className="combatant-level">Lv {pkmn.level}</div>
+        <div className="combatant-level">Lv {pkmn.level} · {moveName}</div>
         <div className="hp-bar">
           <div className={`hp-fill ${hpClass}`} style={{ width: `${hpPct}%` }} />
         </div>

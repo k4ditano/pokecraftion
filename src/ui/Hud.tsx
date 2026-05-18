@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { INGREDIENTS } from '../data/ingredients'
+import { getMove } from '../data/moves'
 
 function hexColor(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`
@@ -15,6 +16,7 @@ export function Hud() {
   const cauldron = useGameStore((s) => s.cauldron)
   const water = useGameStore((s) => s.water)
   const gold = useGameStore((s) => s.gold)
+  const mts = useGameStore((s) => s.mts)
   const pendingMovement = useGameStore((s) => s.pendingMovement)
   const pathNodes = useGameStore((s) => s.pathNodes)
   const currentNodeIdx = useGameStore((s) => s.currentNodeIdx)
@@ -24,6 +26,7 @@ export function Hud() {
   const pourCauldron = useGameStore((s) => s.pourCauldron)
   const pourWater = useGameStore((s) => s.pourWater)
   const openPath = useGameStore((s) => s.openPath)
+  const openTeamPanel = useGameStore((s) => s.openTeamPanel)
 
   const busy = !!pendingMovement
   const cauldronDef = cauldron ? INGREDIENTS[cauldron.ingredientId] : null
@@ -161,17 +164,45 @@ export function Hud() {
         </div>
 
         {party.length > 0 && (
-          <div className="hud-section">
-            <div className="section-title">Equipo</div>
+          <div className="hud-section party-section">
+            <div className="section-title">Equipo (click)</div>
             <div className="party">
-              {party.map((m, i) => (
-                <div key={i} className="party-member">
-                  {m.name} <span className="lvl">Lv {m.level}</span>
-                </div>
-              ))}
+              {party.map((m, i) => {
+                const mv = getMove(m.move)
+                return (
+                  <button
+                    key={i}
+                    className="party-member clickable"
+                    onClick={() => openTeamPanel(i)}
+                    title="Ver y aplicar MTs"
+                  >
+                    {m.name} <span className="lvl">Lv {m.level}</span>
+                    <span className="party-move">· {mv?.name ?? m.move}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
+
+        <div className="hud-section">
+          <div className="section-title">MTs</div>
+          {mts.length === 0 && <div className="empty">— sin MTs —</div>}
+          {mts.length > 0 && (
+            <div className="mts">
+              {mts.map((mt) => {
+                const mv = getMove(mt.moveId)
+                return (
+                  <div key={mt.id} className="mt-chip" title="Aplica via Equipo">
+                    {mt.name}{' '}
+                    <span className="dim">×{mt.qty}</span>{' '}
+                    <span className="dim">· {mv?.type}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   )

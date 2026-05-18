@@ -291,6 +291,120 @@ body,
   border-radius: 4px;
   font-size: 11px;
   white-space: nowrap;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.party-member.clickable {
+  cursor: pointer;
+  color: #f0f0f0;
+  font-family: monospace;
+}
+
+.party-member.clickable:hover {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: rgba(46, 204, 113, 0.7);
+}
+
+.party-move {
+  color: #aaa;
+  font-size: 10px;
+}
+
+.mts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mt-chip {
+  padding: 4px 8px;
+  background: rgba(155, 89, 182, 0.18);
+  border: 1px solid rgba(155, 89, 182, 0.45);
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dim {
+  color: #888;
+}
+
+/* Team member modal */
+
+.overlay-light {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 105;
+  font-family: monospace;
+}
+
+.team-panel {
+  background: #14142a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  width: 540px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.team-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.team-sprite {
+  width: 80px;
+  height: 80px;
+  image-rendering: pixelated;
+}
+
+.team-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-name {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.team-meta {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.team-move {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.team-mts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(155, 89, 182, 0.12);
+  border: 1px solid rgba(155, 89, 182, 0.4);
+  border-radius: 6px;
+  font-size: 12px;
 }
 
 .lvl {
@@ -717,4 +831,15 @@ body,
 
 .result-text {
   font-size: 16px;
+}
+
+.battle-auto {
+  text-align: center;
+  padding: 14px;
+}
+
+.auto-text {
+  color: #888;
+  font-size: 12px;
+  font-style: italic;
 }

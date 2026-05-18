@@ -3,10 +3,12 @@ import type {
   Collectible,
   EventEffect,
   Hazard,
+  MtItem,
   Portal,
   RunNode,
   Vec2,
 } from '../game/types'
+import { getMtDef, STARTER_MTS } from '../data/mts'
 import { getIngredient } from '../data/ingredients'
 import { slicePathByFraction, transformPath } from '../game/pathUtils'
 import {
@@ -25,10 +27,10 @@ import {
 } from '../data/starter'
 import { STARTER_GOLD, STARTER_PATH } from '../data/runPath'
 import {
-  aiPickMove,
   buildBattlePokemon,
   buildEnemyParty,
   computeDamage,
+  defaultMoveFor,
   effectivenessLabel,
   type BattlePokemon,
 } from '../battle/battle'
@@ -42,6 +44,7 @@ export interface PartyMember {
   level: number
   hp: number
   maxHp: number
+  move: string
 }
 
 export interface InventoryItem {
@@ -91,6 +94,9 @@ interface GameState {
   isPathOpen: boolean
   runComplete: boolean
 
+  mts: MtItem[]
+  teamPanelIdx: number | null
+
   battle: BattleState | null
 
   setPhase: (phase: GamePhase) => void
@@ -117,9 +123,13 @@ interface GameState {
   applyEventOption: (nodeId: string, optionIdx: number) => void
 
   startBattle: (nodeId: string) => void
-  chooseBattleMove: (moveIdx: number) => void
+  advanceBattleTurn: () => void
   nextBattleMessage: () => void
   endBattle: () => void
+
+  openTeamPanel: (idx: number) => void
+  closeTeamPanel: () => void
+  applyMt: (mtId: string, partyIdx: number) => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -141,6 +151,9 @@ export const useGameStore = create<GameState>((set) => ({
   currentNodeIdx: 0,
   isPathOpen: false,
   runComplete: false,
+
+  mts: STARTER_MTS.map((m) => ({ ...m })),
+  teamPanelIdx: null,
 
   battle: null,
 
@@ -175,6 +188,7 @@ export const useGameStore = create<GameState>((set) => ({
                 level: 5,
                 hp: 20,
                 maxHp: 20,
+                move: defaultMoveFor(Number(target.defId)),
               },
             ]
           : state.party
@@ -361,7 +375,7 @@ export const useGameStore = create<GameState>((set) => ({
       }
       if (state.party.length === 0) return {}
       const playerParty = state.party.map((m) =>
-        buildBattlePokemon(m.pokemonId, m.name, m.level),
+        buildBattlePokemon(m.pokemonId, m.name, m.level, m.move),
       )
       const enemyParty = buildEnemyParty(node.pokemons)
       return {
@@ -381,7 +395,7 @@ export const useGameStore = create<GameState>((set) => ({
       }
     }),
 
-  chooseBattleMove: (moveIdx) =>
+  advanceBattleTurn: () =>
     set((state) => {
       const battle = state.battle
       if (!battle || battle.result) return {}
@@ -396,8 +410,8 @@ export const useGameStore = create<GameState>((set) => ({
       const messages: string[] = []
       let result: 'win' | 'loss' | null = null
 
-      const playerMoveId = pActive.moves[moveIdx]
-      const enemyMoveId = aiPickMove(eActive)
+      const playerMoveId = pActive.move
+      const enemyMoveId = eActive.move
       const order: ('player' | 'enemy')[] =
         pActive.speed >= eActive.speed ? ['player', 'enemy'] : ['enemy', 'player']
 
@@ -471,6 +485,31 @@ export const useGameStore = create<GameState>((set) => ({
           messages: state.battle.messages.slice(1),
         },
       }
+    }),
+
+  openTeamPanel: (idx) =>
+    set((state) => {
+      if (idx < 0 || idx >= state.party.length) return {}
+      return { teamPanelIdx: idx }
+    }),
+
+  closeTeamPanel: () => set({ teamPanelIdx: null }),
+
+  applyMt: (mtId, partyIdx) =>
+    set((state) => {
+      const mt = state.mts.find((m) => m.id === mtId)
+      if (!mt || mt.qty <= 0) return {}
+      const member = state.party[partyIdx]
+      if (!member) return {}
+      const def = getMtDef(mtId)
+      if (!def) return {}
+      const newParty = state.party.map((m, i) =>
+        i === partyIdx ? { ...m, move: def.moveId } : m,
+      )
+      const newMts = state.mts
+        .map((m) => (m.id === mtId ? { ...m, qty: m.qty - 1 } : m))
+        .filter((m) => m.qty > 0)
+      return { party: newParty, mts: newMts }
     }),
 
   endBattle: () =>

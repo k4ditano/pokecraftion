@@ -13,13 +13,19 @@ export interface BattlePokemon {
   def: number
   speed: number
   types: string[]
-  moves: string[]
+  move: string
+}
+
+export function defaultMoveFor(pokemonId: number): string {
+  const data = getPokemonData(pokemonId)
+  return data.moves[0] ?? 'tackle'
 }
 
 export function buildBattlePokemon(
   pokemonId: number,
   name: string,
   level: number,
+  moveOverride?: string,
 ): BattlePokemon {
   const data = getPokemonData(pokemonId)
   const maxHp = computeHp(data.baseHp, level)
@@ -33,12 +39,14 @@ export function buildBattlePokemon(
     def: computeStat(data.baseDef, level),
     speed: computeStat(data.baseSpd, level),
     types: data.types,
-    moves: data.moves,
+    move: moveOverride ?? defaultMoveFor(pokemonId),
   }
 }
 
 export function buildEnemyParty(pokemons: TrainerPokemon[]): BattlePokemon[] {
-  return pokemons.map((p) => buildBattlePokemon(p.defId, p.name, p.level))
+  return pokemons.map((p) =>
+    buildBattlePokemon(p.defId, p.name, p.level, p.move),
+  )
 }
 
 function computeHp(base: number, level: number): number {
@@ -84,10 +92,6 @@ export function computeDamage(
   return { damage, effectiveness: eff, hit: true }
 }
 
-export function aiPickMove(attacker: BattlePokemon): string {
-  const idx = Math.floor(Math.random() * attacker.moves.length)
-  return attacker.moves[idx]
-}
 
 export function effectivenessLabel(eff: number): string {
   if (eff === 0) return 'No tiene efecto'

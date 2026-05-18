@@ -39,6 +39,7 @@ export interface TrainerPokemon {
   defId: number
   name: string
   level: number
+  move?: string
 }
 
 export interface TrainerReward {
@@ -88,3 +89,10 @@ export interface NodeEvent extends NodeBase {
 }
 
 export type RunNode = NodeTrainer | NodeMerchant | NodeEvent
+
+export interface MtItem {
+  id: string
+  name: string
+  moveId: string
+  qty: number
+}
