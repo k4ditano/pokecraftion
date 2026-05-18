@@ -241,7 +241,7 @@ export class MapScene extends Phaser.Scene {
     const dy = MAP_CENTER.y - pawnY
     const d = Math.hypot(dx, dy)
     if (d > 2) {
-      const speed = 80
+      const speed = 32
       const step = Math.min(speed * dt, d)
       const nx = pawnX + (dx / d) * step
       const ny = pawnY + (dy / d) * step
@@ -251,9 +251,9 @@ export class MapScene extends Phaser.Scene {
       store.setPlayerPos({ x: nx, y: ny })
     }
     this.waterAcc += dt
-    if (this.waterAcc >= 1.2) {
-      const units = Math.floor(this.waterAcc / 1.2)
-      this.waterAcc -= units * 1.2
+    if (this.waterAcc >= 2.4) {
+      const units = Math.floor(this.waterAcc / 2.4)
+      this.waterAcc -= units * 2.4
       store.consumeWater(units)
     }
   }

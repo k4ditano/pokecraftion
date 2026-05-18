@@ -6,4 +6,4 @@ export const WATER_INITIAL = 5
 export const WATER_STEP_DISTANCE = 90
 export const WATER_SPEED = 70
 
-export const MOVE_SPEED = 75
+export const MOVE_SPEED = 32

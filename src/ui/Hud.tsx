@@ -387,7 +387,7 @@ function ToolDock() {
         s.cauldron.grind < 1
       ) {
         const dt = (ts - last) / 1000
-        s.incrementGrind(0.7 * dt)
+        s.incrementGrind(0.22 * dt)
       }
       rafId = requestAnimationFrame(tick)
     }
