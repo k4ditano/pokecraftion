@@ -36,9 +36,9 @@ export const STARTER_PATH: RunNode[] = [
     type: 'merchant',
     label: 'Mercader del bosque',
     offers: [
-      { id: 'straight', name: 'Hierba lineal', qty: 2, price: 6 },
-      { id: 'scurve', name: 'Baya curva', qty: 1, price: 8 },
-      { id: 'jump', name: 'Piedra salto', qty: 1, price: 12 },
+      { id: 'straight', name: 'Piedra Hoja', qty: 2, price: 6 },
+      { id: 'scurve', name: 'Piedra Agua', qty: 1, price: 8 },
+      { id: 'jump', name: 'Piedra Fuego', qty: 1, price: 12 },
     ],
   },
   {

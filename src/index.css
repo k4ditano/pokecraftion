@@ -406,6 +406,23 @@ body {
   filter: drop-shadow(0 4px 0 rgba(42, 37, 64, 0.5));
 }
 
+.ingredient-ghost-img {
+  width: 56px;
+  height: 56px;
+  border: 0;
+  clip-path: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 4px 0 rgba(42, 37, 64, 0.5));
+}
+
+.ingredient-sprite {
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
 .ingredient-swatch {
   width: 22px;
   height: 22px;

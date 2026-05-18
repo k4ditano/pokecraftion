@@ -5,6 +5,7 @@ export interface IngredientDef {
   name: string
   color: number
   path: Vec2[]
+  sprite?: string
 }
 
 export type CollectibleKind = 'pokemon' | 'item'

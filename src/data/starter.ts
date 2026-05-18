@@ -67,9 +67,9 @@ function blobHazards(
 
 
 export const STARTER_INVENTORY: InventoryItem[] = [
-  { id: 'straight', name: 'Hierba lineal', qty: 4 },
-  { id: 'scurve', name: 'Baya curva', qty: 3 },
-  { id: 'jump', name: 'Piedra salto', qty: 2 },
+  { id: 'straight', name: 'Piedra Hoja', qty: 4 },
+  { id: 'scurve', name: 'Piedra Agua', qty: 3 },
+  { id: 'jump', name: 'Piedra Fuego', qty: 2 },
 ]
 
 export const STARTER_PLAYER_POS = { ...MAP_CENTER }

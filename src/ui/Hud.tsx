@@ -94,6 +94,7 @@ export function Hud() {
                   name={item.name}
                   qty={item.qty}
                   color={def ? def.color : 0x666666}
+                  sprite={def?.sprite}
                   disabled={disabled}
                 />
               )
@@ -224,12 +225,14 @@ function IngredientDraggable({
   name,
   qty,
   color,
+  sprite,
   disabled,
 }: {
   itemId: string
   name: string
   qty: number
   color: number
+  sprite?: string
   disabled: boolean
 }) {
   const addToCauldron = useGameStore((s) => s.addToCauldron)
@@ -283,22 +286,41 @@ function IngredientDraggable({
         onPointerDown={start}
         title="Arrastra al caldero"
       >
-        <span
-          className="ingredient-swatch"
-          style={{ background: colorHex }}
-        />
+        {sprite ? (
+          <img
+            className="ingredient-sprite"
+            src={sprite}
+            alt={name}
+            draggable={false}
+          />
+        ) : (
+          <span
+            className="ingredient-swatch"
+            style={{ background: colorHex }}
+          />
+        )}
         <span className="ingredient-name">{name}</span>
         <span className="ingredient-qty">x{qty}</span>
       </div>
       {dragging && (
-        <span
-          className="ingredient-ghost"
-          style={{
-            left: pos.x,
-            top: pos.y,
-            background: colorHex,
-          }}
-        />
+        sprite ? (
+          <img
+            className="ingredient-ghost ingredient-ghost-img"
+            src={sprite}
+            alt=""
+            draggable={false}
+            style={{ left: pos.x, top: pos.y }}
+          />
+        ) : (
+          <span
+            className="ingredient-ghost"
+            style={{
+              left: pos.x,
+              top: pos.y,
+              background: colorHex,
+            }}
+          />
+        )
       )}
     </>
   )
