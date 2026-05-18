@@ -301,6 +301,8 @@ body {
 
 .hud-top-left,
 .hud-top-right {
+  position: absolute;
+  z-index: 50;
   pointer-events: auto;
   /* Apply scroll-panel look */
   background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
@@ -314,7 +316,6 @@ body {
     inset 0 0 0 3px var(--wood),
     inset 0 0 0 4px var(--wood-dark),
     3px 3px 0 rgba(0, 0, 0, 0.25);
-  position: relative;
 }
 
 .hud-top-left::before,
@@ -370,7 +371,9 @@ body {
 
 /* ---------- HUD bottom (wood tray) ---------- */
 .hud-bottom {
-  bottom: 16px;
+  position: absolute;
+  z-index: 50;
+  bottom: 22px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -391,7 +394,6 @@ body {
   border-radius: 4px;
   padding: 14px 16px 16px;
   color: var(--parchment);
-  position: relative;
   box-shadow:
     inset 0 1px 0 var(--wood-soft),
     inset 0 -4px 0 rgba(0, 0, 0, 0.35),
