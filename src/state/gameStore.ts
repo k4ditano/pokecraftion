@@ -30,7 +30,8 @@ import {
   STARTER_PORTALS,
   STARTER_SEEDS,
 } from '../data/starter'
-import { STARTER_GOLD, STARTER_PATH } from '../data/runPath'
+import { STARTER_GOLD } from '../data/runPath'
+import { arenaFor, buildArenaPath } from '../data/arenas'
 import {
   buildBattlePokemon,
   buildEnemyParty,
@@ -122,6 +123,8 @@ interface GameState {
   seeds: Record<string, number>
   plots: Plot[]
 
+  lastLevelUp: { name: string; level: number; ts: number } | null
+
   battle: BattleState | null
 
   setPhase: (phase: GamePhase) => void
@@ -193,6 +196,7 @@ type InitialStateFields = Pick<
   | 'isWatering'
   | 'seeds'
   | 'plots'
+  | 'lastLevelUp'
   | 'battle'
 >
 
@@ -238,7 +242,9 @@ function buildInitialState(): InitialStateFields {
     aimAngle: 0,
     pendingMovement: null,
     gold,
-    pathNodes: JSON.parse(JSON.stringify(STARTER_PATH)) as RunNode[],
+    pathNodes: JSON.parse(
+      JSON.stringify(buildArenaPath(arenaFor(meta.bossesDefeated.length))),
+    ) as RunNode[],
     currentNodeIdx: 0,
     isPathOpen: false,
     runComplete: false,
@@ -248,6 +254,7 @@ function buildInitialState(): InitialStateFields {
     isWatering: false,
     seeds: { ...STARTER_SEEDS },
     plots: STARTER_PLOTS.map((p) => ({ ...p, pos: { ...p.pos } })),
+    lastLevelUp: null,
     battle: null,
   }
 }
@@ -299,12 +306,18 @@ export const useGameStore = create<GameState>((set) => ({
         const alive = state.party.filter((p) => p.hp > 0)
         const pool = alive.length > 0 ? alive : state.party
         const lowest = pool.reduce((a, b) => (a.level <= b.level ? a : b))
-        const newParty = state.party.map((m) =>
-          m === lowest
-            ? applyXp(m, Math.max(1, m.level * 22 + 8))
-            : m,
-        )
-        return { collectibles: filteredCollectibles, party: newParty }
+        const beforeLevel = lowest.level
+        const leveled = applyXp(lowest, Math.max(1, lowest.level * 22 + 8))
+        const newParty = state.party.map((m) => (m === lowest ? leveled : m))
+        const lastLevelUp =
+          leveled.level > beforeLevel
+            ? { name: leveled.name, level: leveled.level, ts: Date.now() }
+            : state.lastLevelUp
+        return {
+          collectibles: filteredCollectibles,
+          party: newParty,
+          lastLevelUp,
+        }
       }
       // Wild pokémon → no auto-capture (map mons are decoration)
       return { collectibles: filteredCollectibles }
@@ -748,7 +761,18 @@ export const useGameStore = create<GameState>((set) => ({
             node.reward.ingredients,
           )
           const xp = bossXpReward(node.pokemons.map((p) => p.level))
+          const beforeLevels = partyWithHp.map((m) => m.level)
           const partyWithXp = distributeXp(partyWithHp, xp)
+          let lastLevelUp = state.lastLevelUp
+          for (let i = 0; i < partyWithXp.length; i++) {
+            if (partyWithXp[i].level > beforeLevels[i]) {
+              lastLevelUp = {
+                name: partyWithXp[i].name,
+                level: partyWithXp[i].level,
+                ts: Date.now() + i,
+              }
+            }
+          }
           const nextIdx = state.currentNodeIdx + 1
           const nowComplete = nextIdx >= state.pathNodes.length
           if (nowComplete) {
@@ -767,6 +791,7 @@ export const useGameStore = create<GameState>((set) => ({
             currentNodeIdx: nextIdx,
             runComplete: nowComplete,
             battle: null,
+            lastLevelUp,
           }
         }
       }

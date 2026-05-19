@@ -2,6 +2,7 @@ import { useGameStore } from '../state/gameStore'
 import { spriteUrlFor } from '../services/pokeapi'
 import { getMove } from '../data/moves'
 import { getPokemonData } from '../data/pokemonData'
+import { xpForNext } from '../battle/leveling'
 
 export function TeamMemberPanel() {
   const teamPanelIdx = useGameStore((s) => s.teamPanelIdx)
@@ -41,6 +42,17 @@ export function TeamMemberPanel() {
               <strong>{currentMove?.name ?? member.move}</strong>{' '}
               <span className="dim">
                 ({currentMove?.type}, pot {currentMove?.power})
+              </span>
+            </div>
+            <div className="xp-bar">
+              <div
+                className="xp-fill"
+                style={{
+                  width: `${Math.min(100, (member.xp / xpForNext(member.level)) * 100)}%`,
+                }}
+              />
+              <span className="xp-text">
+                XP {member.xp}/{xpForNext(member.level)}
               </span>
             </div>
           </div>

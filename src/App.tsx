@@ -3,6 +3,7 @@ import { BattleScreen } from './ui/BattleScreen'
 import { Hud } from './ui/Hud'
 import { PathScreen } from './ui/PathScreen'
 import { PhaserCanvas } from './ui/PhaserCanvas'
+import { LevelUpToast } from './ui/LevelUpToast'
 import { StarterPicker } from './ui/StarterPicker'
 import { TeamMemberPanel } from './ui/TeamMemberPanel'
 import { useMetaStore } from './state/metaStore'
@@ -81,6 +82,7 @@ export default function App() {
       <PathScreen />
       <BattleScreen />
       <StarterPicker />
+      <LevelUpToast />
     </div>
   )
 }

@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../state/gameStore'
 import { useMetaStore } from '../state/metaStore'
 import { INGREDIENTS } from '../data/ingredients'
+import { arenaFor } from '../data/arenas'
 import { getMove } from '../data/moves'
 import { MAP_CENTER } from '../data/map'
 import { spriteUrlFor } from '../services/pokeapi'
+import { clearRun } from '../services/runSave'
 
 function hexColor(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`
@@ -14,7 +16,10 @@ function hexColor(n: number): string {
 export function Hud() {
   const party = useGameStore((s) => s.party)
   const inventory = useGameStore((s) => s.inventory)
+  const restartRun = useGameStore((s) => s.restartRun)
   const medals = useMetaStore((s) => s.medals)
+  const bossesDefeated = useMetaStore((s) => s.bossesDefeated)
+  const arena = arenaFor(bossesDefeated.length)
   const cauldron = useGameStore((s) => s.cauldron)
   const water = useGameStore((s) => s.water)
   const gold = useGameStore((s) => s.gold)
@@ -56,6 +61,10 @@ export function Hud() {
 
       <div className="hud hud-top-right interactive">
         <div className="hud-row">
+          <span className="hud-label">Arena:</span>
+          <span className="hud-value">{arena.name}</span>
+        </div>
+        <div className="hud-row">
           <span className="hud-label">Camino:</span>
           <span className="hud-value">
             {Math.min(currentNodeIdx + 1, pathNodes.length)}/{pathNodes.length}
@@ -73,6 +82,22 @@ export function Hud() {
           onClick={() => openPath()}
         >
           {runComplete ? 'Ver resumen' : 'Salir al camino'}
+        </button>
+        <button
+          className="btn cancel"
+          style={{ marginTop: 4, fontSize: 12 }}
+          onClick={() => {
+            if (
+              window.confirm(
+                'Abandonar la run actual? Pierdes el progreso de esta partida (las medallas y mejoras se conservan).',
+              )
+            ) {
+              clearRun()
+              restartRun()
+            }
+          }}
+        >
+          Abandonar
         </button>
       </div>
 
