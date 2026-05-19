@@ -910,6 +910,113 @@ body {
   z-index: 105;
 }
 
+.starter-overlay {
+  z-index: 120;
+}
+
+.starter-panel {
+  position: relative;
+  background: var(--sk-paper);
+  background-image: var(--sk-dots-bg);
+  background-size: 6px 6px;
+  border: var(--sk-line) solid var(--sk-ink);
+  padding: 26px;
+  width: 720px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: var(--sk-shadow);
+}
+
+.starter-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--sk-inner-hi);
+}
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.starter-card {
+  position: relative;
+  background: var(--sk-paper-soft);
+  border: var(--sk-line) solid var(--sk-ink);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-family: var(--sk-font-hand);
+  color: var(--sk-ink);
+  box-shadow: var(--sk-shadow-sm);
+  transition:
+    transform 0.08s,
+    filter 0.1s;
+}
+
+.starter-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--sk-inner-hi);
+}
+
+.starter-card:hover {
+  filter: brightness(1.05);
+  transform: translateY(-2px);
+}
+
+.starter-card:active {
+  transform: translateY(0);
+}
+
+.starter-card.type-grass {
+  border-color: var(--sk-accent-2);
+}
+
+.starter-card.type-fire {
+  border-color: var(--sk-accent);
+}
+
+.starter-card.type-water {
+  border-color: var(--sk-water);
+}
+
+.starter-card img {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 3px 0 rgba(42, 37, 64, 0.45));
+}
+
+.starter-name {
+  font-family: var(--sk-font-title);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.starter-type {
+  font-family: var(--sk-font-mono);
+  font-size: 10px;
+  color: var(--sk-ink-soft);
+}
+
+.starter-blurb {
+  font-family: var(--sk-font-hand);
+  font-size: 13px;
+  color: var(--sk-ink-2);
+  text-align: center;
+  line-height: 1.3;
+}
+
 .path-screen,
 .team-panel,
 .meta-shop {

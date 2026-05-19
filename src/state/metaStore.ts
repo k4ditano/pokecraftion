@@ -86,16 +86,30 @@ export function upgradeCost(id: string, currentLevel: number): number {
 interface MetaState {
   essences: number
   unlocks: Record<string, number>
+  medals: number
+  bossesDefeated: string[]
   ready: boolean
   loadFromDb: () => Promise<void>
   addEssences: (n: number) => void
   buyUpgrade: (id: string) => void
+  awardMedal: (bossId: string) => void
   resetAll: () => Promise<void>
+}
+
+function persist(state: MetaState): void {
+  void saveMeta({
+    essences: state.essences,
+    unlocks: state.unlocks,
+    medals: state.medals,
+    bossesDefeated: state.bossesDefeated,
+  })
 }
 
 export const useMetaStore = create<MetaState>((set, get) => ({
   essences: 0,
   unlocks: {},
+  medals: 0,
+  bossesDefeated: [],
   ready: false,
 
   loadFromDb: async () => {
@@ -103,6 +117,8 @@ export const useMetaStore = create<MetaState>((set, get) => ({
     set({
       essences: meta.essences,
       unlocks: meta.unlocks,
+      medals: meta.medals,
+      bossesDefeated: meta.bossesDefeated,
       ready: true,
     })
   },
@@ -110,9 +126,9 @@ export const useMetaStore = create<MetaState>((set, get) => ({
   addEssences: (n) => {
     if (n <= 0) return
     set((state) => {
-      const next = state.essences + n
-      void saveMeta(next, state.unlocks)
-      return { essences: next }
+      const next = { ...state, essences: state.essences + n }
+      persist(next)
+      return { essences: next.essences }
     })
   },
 
@@ -125,12 +141,28 @@ export const useMetaStore = create<MetaState>((set, get) => ({
     if (state.essences < cost) return
     const newUnlocks = { ...state.unlocks, [id]: lvl + 1 }
     const newEssences = state.essences - cost
-    void saveMeta(newEssences, newUnlocks)
+    const merged = { ...state, essences: newEssences, unlocks: newUnlocks }
+    persist(merged)
     set({ essences: newEssences, unlocks: newUnlocks })
+  },
+
+  awardMedal: (bossId) => {
+    set((state) => {
+      if (state.bossesDefeated.includes(bossId)) return {}
+      const newBosses = [...state.bossesDefeated, bossId]
+      const newMedals = state.medals + 1
+      const merged = {
+        ...state,
+        medals: newMedals,
+        bossesDefeated: newBosses,
+      }
+      persist(merged)
+      return { medals: newMedals, bossesDefeated: newBosses }
+    })
   },
 
   resetAll: async () => {
     await resetMeta()
-    set({ essences: 0, unlocks: {} })
+    set({ essences: 0, unlocks: {}, medals: 0, bossesDefeated: [] })
   },
 }))

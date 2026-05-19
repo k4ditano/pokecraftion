@@ -274,4 +274,21 @@ export const STARTER_COLLECTIBLES: Collectible[] = [
     pos: { x: 960, y: 820 },
     radius: 18,
   },
+  // Rare candies — level up lowest party member
+  {
+    id: 'candy-1',
+    kind: 'item',
+    defId: 'rare-candy',
+    label: 'Caramelo',
+    pos: { x: 820, y: 540 },
+    radius: 16,
+  },
+  {
+    id: 'candy-2',
+    kind: 'item',
+    defId: 'rare-candy',
+    label: 'Caramelo',
+    pos: { x: 1100, y: 540 },
+    radius: 16,
+  },
 ]

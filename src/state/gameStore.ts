@@ -39,6 +39,7 @@ import {
   maxHpFor,
   type BattlePokemon,
 } from '../battle/battle'
+import { applyXp, bossXpReward, distributeXp } from '../battle/leveling'
 import { getMove } from '../data/moves'
 import { getPokemonData } from '../data/pokemonData'
 
@@ -51,6 +52,7 @@ export interface PartyMember {
   hp: number
   maxHp: number
   move: string
+  xp: number
 }
 
 export interface InventoryItem {
@@ -163,6 +165,8 @@ interface GameState {
   applyMt: (mtId: string, partyIdx: number) => void
 
   restartRun: () => void
+  pickStarter: (defId: number, name: string) => void
+  hydrateRun: (snapshot: Partial<InitialStateFields>) => void
 }
 
 type InitialStateFields = Pick<
@@ -221,18 +225,9 @@ function buildInitialState(): InitialStateFields {
     }
   }
 
-  const starterParty: PartyMember[] = [
-    { pokemonId: 16, name: 'Pidgey', level: 5, hp: 0, maxHp: 0, move: defaultMoveFor(16) },
-    { pokemonId: 19, name: 'Rattata', level: 5, hp: 0, maxHp: 0, move: defaultMoveFor(19) },
-    { pokemonId: 25, name: 'Pikachu', level: 5, hp: 0, maxHp: 0, move: defaultMoveFor(25) },
-  ].map((p) => {
-    const m = maxHpFor(p.pokemonId, p.level)
-    return { ...p, hp: m, maxHp: m }
-  })
-
   return {
     phase: 'map',
-    party: starterParty,
+    party: [],
     inventory,
     collectibles: STARTER_COLLECTIBLES.map((c) => ({ ...c })),
     portals: STARTER_PORTALS.map((p) => ({ ...p })),
@@ -293,29 +288,26 @@ export const useGameStore = create<GameState>((set) => ({
     set((state) => {
       const target = state.collectibles.find((c) => c.id === collectibleId)
       if (!target) return {}
-      const newParty =
-        target.kind === 'pokemon' && state.party.length < 6
-          ? (() => {
-              const lvl = 5
-              const id = Number(target.defId)
-              const maxHp = maxHpFor(id, lvl)
-              return [
-                ...state.party,
-                {
-                  pokemonId: id,
-                  name: target.label,
-                  level: lvl,
-                  hp: maxHp,
-                  maxHp,
-                  move: defaultMoveFor(id),
-                },
-              ]
-            })()
-          : state.party
-      return {
-        collectibles: state.collectibles.filter((c) => c.id !== collectibleId),
-        party: newParty,
+      const filteredCollectibles = state.collectibles.filter(
+        (c) => c.id !== collectibleId,
+      )
+      // Rare candy → level up lowest-level living party member
+      if (target.kind === 'item' && target.defId === 'rare-candy') {
+        if (state.party.length === 0) {
+          return { collectibles: filteredCollectibles }
+        }
+        const alive = state.party.filter((p) => p.hp > 0)
+        const pool = alive.length > 0 ? alive : state.party
+        const lowest = pool.reduce((a, b) => (a.level <= b.level ? a : b))
+        const newParty = state.party.map((m) =>
+          m === lowest
+            ? applyXp(m, Math.max(1, m.level * 22 + 8))
+            : m,
+        )
+        return { collectibles: filteredCollectibles, party: newParty }
       }
+      // Wild pokémon → no auto-capture (map mons are decoration)
+      return { collectibles: filteredCollectibles }
     }),
 
   addToCauldron: (id) =>
@@ -715,6 +707,25 @@ export const useGameStore = create<GameState>((set) => ({
 
   restartRun: () => set(buildInitialState()),
 
+  pickStarter: (defId, name) =>
+    set((state) => {
+      if (state.party.length > 0) return {}
+      const lvl = 5
+      const mh = maxHpFor(defId, lvl)
+      const member: PartyMember = {
+        pokemonId: defId,
+        name,
+        level: lvl,
+        hp: mh,
+        maxHp: mh,
+        move: defaultMoveFor(defId),
+        xp: 0,
+      }
+      return { party: [member] }
+    }),
+
+  hydrateRun: (snapshot) => set((state) => ({ ...state, ...snapshot })),
+
   endBattle: () =>
     set((state) => {
       const battle = state.battle
@@ -736,18 +747,21 @@ export const useGameStore = create<GameState>((set) => ({
             state.inventory,
             node.reward.ingredients,
           )
+          const xp = bossXpReward(node.pokemons.map((p) => p.level))
+          const partyWithXp = distributeXp(partyWithHp, xp)
           const nextIdx = state.currentNodeIdx + 1
           const nowComplete = nextIdx >= state.pathNodes.length
           if (nowComplete) {
             const earned = computeEssencesEarned(
-              partyWithHp.length,
+              partyWithXp.length,
               state.gold + node.reward.gold,
               state.collectibles.length,
             )
             useMetaStore.getState().addEssences(earned)
+            useMetaStore.getState().awardMedal(node.id)
           }
           return {
-            party: partyWithHp,
+            party: partyWithXp,
             inventory,
             gold: state.gold + node.reward.gold,
             currentNodeIdx: nextIdx,

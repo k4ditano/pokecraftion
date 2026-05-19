@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../state/gameStore'
+import { useMetaStore } from '../state/metaStore'
 import { INGREDIENTS } from '../data/ingredients'
 import { getMove } from '../data/moves'
 import { MAP_CENTER } from '../data/map'
@@ -13,7 +14,7 @@ function hexColor(n: number): string {
 export function Hud() {
   const party = useGameStore((s) => s.party)
   const inventory = useGameStore((s) => s.inventory)
-  const collectibles = useGameStore((s) => s.collectibles)
+  const medals = useMetaStore((s) => s.medals)
   const cauldron = useGameStore((s) => s.cauldron)
   const water = useGameStore((s) => s.water)
   const gold = useGameStore((s) => s.gold)
@@ -44,12 +45,12 @@ export function Hud() {
           <span className="hud-value">{gold}⚜</span>
         </div>
         <div className="hud-row">
-          <span className="hud-label">Party:</span>
-          <span className="hud-value">{party.length}/6</span>
+          <span className="hud-label">Medallas:</span>
+          <span className="hud-value">{medals}</span>
         </div>
         <div className="hud-row">
-          <span className="hud-label">Mapa:</span>
-          <span className="hud-value">{collectibles.length} restantes</span>
+          <span className="hud-label">Party:</span>
+          <span className="hud-value">{party.length}/6</span>
         </div>
       </div>
 

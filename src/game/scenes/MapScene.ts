@@ -68,6 +68,11 @@ export class MapScene extends Phaser.Scene {
     for (const c of collectibles) {
       if (c.kind === 'pokemon') {
         this.load.image(`pkmn-${c.defId}`, spriteUrlFor(Number(c.defId)))
+      } else if (c.kind === 'item') {
+        this.load.image(
+          `item-${c.defId}`,
+          `https://raw.githubusercontent.com/msikma/pokesprite/master/items/medicine/${c.defId}.png`,
+        )
       }
     }
     for (const id of Object.keys(INGREDIENTS)) {
@@ -436,11 +441,22 @@ export class MapScene extends Phaser.Scene {
 
     for (const c of list) {
       if (this.collectibleSprites.has(c.id)) continue
-      const textureKey = `pkmn-${c.defId}`
+      const textureKey =
+        c.kind === 'pokemon' ? `pkmn-${c.defId}` : `item-${c.defId}`
       if (!this.textures.exists(textureKey)) continue
       const sprite = this.add.image(c.pos.x, c.pos.y, textureKey)
-      sprite.setScale(1.0)
+      sprite.setScale(c.kind === 'pokemon' ? 1.0 : 1.6)
       sprite.setDepth(3)
+      if (c.kind === 'item') {
+        this.tweens.add({
+          targets: sprite,
+          y: c.pos.y - 4,
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        })
+      }
       this.collectibleSprites.set(c.id, sprite)
 
       const label = this.add
@@ -530,10 +546,15 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private checkCollisions(_pos: Vec2): void {
-    // Capture-on-touch removed: map pokémons are pure decoration.
-    // Real party seeded by buildInitialState.
-    void _pos
+  private checkCollisions(pos: Vec2): void {
+    const store = useGameStore.getState()
+    for (const c of store.collectibles) {
+      if (c.kind !== 'item') continue
+      if (overlaps(pos, c.pos, c.radius)) {
+        this.spawnSparkles(c.pos.x, c.pos.y, 0xfff5dc)
+        store.collectItem(c.id)
+      }
+    }
   }
 
   private renderPlots(): void {
